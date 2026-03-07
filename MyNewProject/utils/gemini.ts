@@ -39,3 +39,24 @@ export async function askGemini(prompt: string, base64Image?: string, imageMimeT
         return null;
     }
 }
+
+export async function chatAboutReel(topicContext: string, userMessage: string, chatHistory: any[] = []) {
+    try {
+        const contents = [
+            ...chatHistory,
+            { role: "user", parts: [{ text: userMessage }] }
+        ];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: contents,
+            config: {
+                systemInstruction: `You are a helpful and engaging tutor on TikTok/Reels. The user is currently watching a short educational video about the following topic script:\n\n"${topicContext}"\n\nYour job is to answer the user's questions specifically related to this topic context. Keep your answers concise, friendly, and easy to read on a mobile screen. Do not use complex formatting.`,
+            }
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Gemini Chat API Error:", error);
+        return "Sorry, I'm having trouble connecting right now.";
+    }
+}

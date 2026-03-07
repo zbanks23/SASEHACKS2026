@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { askGemini } from '@/utils/gemini';
+import { saveScriptToHistory } from '@/utils/storage';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -125,7 +126,6 @@ export default function AddModalScreen() {
       Alert.alert("Please provide at least some text, an image, or a document.");
       return;
     }
-
     setIsGenerating(true);
     setProgressStage(1); // Scripting
 
@@ -140,6 +140,15 @@ export default function AddModalScreen() {
         setProgressStage(3); // Subtitling
         await new Promise(resolve => setTimeout(resolve, 1500));
         
+        let title = "Generated Reel";
+        if (inputMode === 'pdf' && documentName) {
+            title = documentName;
+        } else if (inputMode === 'text' && prompt) {
+            title = prompt.substring(0, 30) + "...";
+        }
+        
+        await saveScriptToHistory(result, title);
+
         // Pass the result back to the Home Feed tab!
         router.replace({
           pathname: '/(tabs)',

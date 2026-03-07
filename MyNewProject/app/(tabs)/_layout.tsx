@@ -1,4 +1,4 @@
-import { Tabs, router } from 'expo-router';
+import { Tabs, router, usePathname } from 'expo-router';
 import React from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -6,6 +6,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const pathname = usePathname();
 
   return (
     <Tabs
@@ -49,8 +50,12 @@ export default function TabLayout() {
         }}
         listeners={() => ({
           tabPress: (e) => {
-            // This button navigates to the feed AND opens the generator modal!
-            router.push('/add-modal');
+            // Only open the upload modal if we are ALREADY on the Home feed!
+            // If we are on another tab, just let it navigate to the Home feed normally.
+            if (pathname === '/') {
+              e.preventDefault();
+              router.push('/add-modal');
+            }
           },
         })}
       />

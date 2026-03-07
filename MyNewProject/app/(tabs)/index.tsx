@@ -1,11 +1,13 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { StyleSheet, View, FlatList, Dimensions, ViewToken, ScrollView } from 'react-native';
+import { StyleSheet, View, FlatList, Dimensions, ViewToken, ScrollView, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 
 import { TopNavBar } from '@/components/TopNavBar';
+import { ChatModal } from '@/components/ChatModal';
 
 const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
 
@@ -29,7 +31,7 @@ const generateVideoFeed = () => {
   return Array.from({ length: 50 }, (_, i) => getRandomVideo(i));
 };
 
-const VideoItem = ({ source, isActive, onVideoLoaded }: { source: any; isActive: boolean; onVideoLoaded: () => void }) => {
+const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any; isActive: boolean; onVideoLoaded: () => void }) => {
   const videoRef = useRef<Video>(null);
   const [hasJumpedToRandomTime, setHasJumpedToRandomTime] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -89,19 +91,28 @@ const VideoItem = ({ source, isActive, onVideoLoaded }: { source: any; isActive:
         style={styles.video}
         source={videoSource}
         useNativeControls={false}
-        resizeMode={ResizeMode.CONTAIN}
+        resizeMode={ResizeMode.COVER}
         isLooping
         shouldPlay={isActive}
         onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+        progressUpdateIntervalMillis={1000} // PERFORMANCE: Reduce update frequency
+        posterSource={require('@/assets/images/partial-react-logo.png')} // Show something while loading
+        posterStyle={styles.poster}
       />
+      {!isLoaded && isActive && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#FFF" />
+        </View>
+      )}
     </View>
   );
-};
+});;
 
 export default function HomeScreen() {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [activeTopTab, setActiveTopTab] = useState<'reels' | 'questions'>('reels');
   const [isCurrentVideoLoaded, setIsCurrentVideoLoaded] = useState(false); // Track scroll lock State
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const bottomTabBarHeight = useBottomTabBarHeight(); // Required so videos are positioned correctly with absolute tab bar
 
   // Get script passing back from the generator Modal
@@ -150,6 +161,7 @@ export default function HomeScreen() {
   }).current;
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     // Reset scroll to top when swiping to a new video
@@ -158,11 +170,24 @@ export default function HomeScreen() {
     }
   }, [activeVideoIndex]);
 
+  useEffect(() => {
+    // When a newly generated or selected history script loads, reset the feed completely to Topic 1
+    if (generatedScript) {
+      setActiveVideoIndex(0);
+      setIsCurrentVideoLoaded(false);
+      // Give the layout a frame to adjust before snapping the video list to the top
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      }, 0);
+    }
+  }, [generatedScript]);
+
   return (
     <View style={styles.container}>
       {activeTopTab === 'reels' ? (
         <>
           <FlatList
+            ref={flatListRef}
             data={feedVideos}
             renderItem={({ item, index }) => (
               <View key={item.uniqueKey} style={{ height: containerHeight, width: windowWidth }}>
@@ -182,8 +207,11 @@ export default function HomeScreen() {
             snapToInterval={containerHeight}
             snapToAlignment="start"
             decelerationRate="fast"
-            windowSize={5} // Keep a few items rendered off-screen
-            initialNumToRender={3}
+            windowSize={3} // PERFORMANCE: Reduce number of items kept in memory
+            initialNumToRender={2}
+            maxToRenderPerBatch={2}
+            updateCellsBatchingPeriod={100}
+            removeClippedSubviews={true} // PERFORMANCE: Unmount off-screen views
             scrollEnabled={isCurrentVideoLoaded} // PERFORMANCE FIX: Only allow scrolling if the current video is rendering!
           />
 
@@ -204,6 +232,14 @@ export default function HomeScreen() {
               </ScrollView>
             </View>
           )}
+
+          {/* Action Buttons Panel */}
+          <View style={[styles.rightActionPanel, { bottom: bottomTabBarHeight + 200 }]}>
+            <TouchableOpacity style={styles.actionButton} onPress={() => setIsChatOpen(true)}>
+              <Ionicons name="chatbubble-ellipses" size={36} color="white" />
+              <Text style={styles.actionText}>Chat</Text>
+            </TouchableOpacity>
+          </View>
         </>
       ) : (
         <View style={styles.placeholderContainer}>
@@ -214,6 +250,12 @@ export default function HomeScreen() {
       <TopNavBar 
         activeTab={activeTopTab} 
         onTabChange={setActiveTopTab} 
+      />
+
+      <ChatModal 
+        isVisible={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        topicContext={scriptsArray[activeVideoIndex] || ''}
       />
     </View>
   );
@@ -231,6 +273,17 @@ const styles = StyleSheet.create({
   video: {
     width: '100%',
     height: '100%',
+  },
+  poster: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   subtitlesContainer: {
     position: 'absolute',
@@ -266,5 +319,29 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 18,
     textAlign: 'center',
+  },
+  rightActionPanel: {
+    position: 'absolute',
+    right: 12,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  actionButton: {
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 2,
+    elevation: 5,
+  },
+  actionText: {
+    color: 'white',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   }
 });
