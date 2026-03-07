@@ -35,6 +35,7 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
   const videoRef = useRef<Video>(null);
   const [hasJumpedToRandomTime, setHasJumpedToRandomTime] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isUserPaused, setIsUserPaused] = useState(false);
 
   // Safely tell the parent list we are ready to be scrolled from,
   // whenever we are both active and loaded!
@@ -46,13 +47,23 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
 
   useEffect(() => {
     if (isActive) {
-      // Catch exceptions silently if it unmounts too fast
+      setIsUserPaused(false); // Reset pause state when this video becomes active
       videoRef.current?.playAsync().catch(() => { });
     } else {
-      // Don't await these! If you swipe extremely fast, Seeking might get interrupted.
       videoRef.current?.pauseAsync().catch(() => { });
     }
   }, [isActive]);
+
+  const togglePlayPause = () => {
+    const nextPausedState = !isUserPaused;
+    setIsUserPaused(nextPausedState);
+    
+    if (nextPausedState) {
+      videoRef.current?.pauseAsync().catch(() => {});
+    } else {
+      videoRef.current?.playAsync().catch(() => {});
+    }
+  };
 
   // When the video finishes loading its metadata, find a random spot to start!
   const handlePlaybackStatusUpdate = async (status: AVPlaybackStatus) => {
@@ -85,7 +96,11 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
   const videoSource = typeof source === 'string' ? { uri: source } : source;
 
   return (
-    <View style={styles.videoContainer}>
+    <TouchableOpacity 
+      style={styles.videoContainer} 
+      activeOpacity={1} 
+      onPress={togglePlayPause}
+    >
       <Video
         ref={videoRef}
         style={styles.video}
@@ -93,18 +108,26 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
         useNativeControls={false}
         resizeMode={ResizeMode.COVER}
         isLooping
-        shouldPlay={isActive}
+        shouldPlay={isActive && !isUserPaused}
         onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
         progressUpdateIntervalMillis={1000} // PERFORMANCE: Reduce update frequency
         posterSource={require('@/assets/images/partial-react-logo.png')} // Show something while loading
         posterStyle={styles.poster}
       />
+      
+      {/* Pause Icon Overlay */}
+      {isUserPaused && (
+        <View style={styles.pauseOverlay}>
+          <Ionicons name="play" size={80} color="rgba(255,255,255,0.7)" />
+        </View>
+      )}
+
       {!isLoaded && isActive && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#FFF" />
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 });;
 
@@ -284,6 +307,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  pauseOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   subtitlesContainer: {
     position: 'absolute',
