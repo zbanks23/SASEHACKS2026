@@ -1,7 +1,9 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { StyleSheet, View, FlatList, Dimensions, ViewToken } from 'react-native';
+import { StyleSheet, View, FlatList, Dimensions, ViewToken, ScrollView } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useLocalSearchParams } from 'expo-router';
+import { ThemedText } from '@/components/themed-text';
 
 import { TopNavBar } from '@/components/TopNavBar';
 
@@ -100,9 +102,34 @@ export default function HomeScreen() {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [isCurrentVideoLoaded, setIsCurrentVideoLoaded] = useState(false); // Track scroll lock State
   const bottomTabBarHeight = useBottomTabBarHeight(); // Required so videos are positioned correctly with absolute tab bar
+  
+  // Get script passing back from the generator Modal
+  const { generatedScript } = useLocalSearchParams<{ generatedScript: string }>();
+
+  // Parse script into an array based on "Topic X" headings
+  const scriptsArray = useMemo(() => {
+    if (!generatedScript) return [];
+    
+    // Split by "Topic 1", "**Topic 2**", "Topic 3:", etc. using regex
+    // The lookahead (?=...) keeps the delimiter so it stays part of the text
+    const splitRegex = /(?=(?:\*\*?)?Topic \d+(?:\*\*?)?:?)/i;
+    
+    return generatedScript
+      .split(splitRegex)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  }, [generatedScript]);
 
   // Generate the list of 50 random clips when the screen loads
-  const feedVideos = useMemo(() => generateVideoFeed(), []);
+  const allFeedVideos = useMemo(() => generateVideoFeed(), []);
+
+  // Limit feed to the number of scripts if a script exists, to emulate "all video scripts are finished"
+  const feedVideos = useMemo(() => {
+    if (scriptsArray.length > 0) {
+      return allFeedVideos.slice(0, scriptsArray.length);
+    }
+    return allFeedVideos;
+  }, [allFeedVideos, scriptsArray]);
 
   const containerHeight = windowHeight;
 
@@ -120,6 +147,15 @@ export default function HomeScreen() {
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 50,
   }).current;
+
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    // Reset scroll to top when swiping to a new video
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: false });
+    }
+  }, [activeVideoIndex]);
 
   return (
     <View style={styles.container}>
@@ -148,6 +184,24 @@ export default function HomeScreen() {
         scrollEnabled={isCurrentVideoLoaded} // PERFORMANCE FIX: Only allow scrolling if the current video is rendering!
       />
 
+      {/* Generated Script Overlay! */}
+      {scriptsArray.length > 0 && scriptsArray[activeVideoIndex] && (
+        <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20 }]}>
+           <ScrollView ref={scrollViewRef} style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
+              <ThemedText style={styles.subtitlesText}>{scriptsArray[activeVideoIndex]}</ThemedText>
+           </ScrollView>
+        </View>
+      )}
+
+      {/* Fallback Overlay if no text generated just to show where it goes */}
+      {!generatedScript && (
+        <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20, opacity: 0.5 }]}>
+           <ScrollView style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
+              <ThemedText style={styles.subtitlesText}>Tap the + button to generate scripts for your Reel</ThemedText>
+           </ScrollView>
+        </View>
+      )}
+
       <TopNavBar />
     </View>
   );
@@ -166,4 +220,28 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  subtitlesContainer: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    maxHeight: 250,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)'
+  },
+  subtitlesScroll: {
+    width: '100%',
+  },
+  subtitlesText: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    lineHeight: 32,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
+  }
 });

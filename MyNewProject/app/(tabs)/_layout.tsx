@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import React from 'react';
 import { Platform, View, Text } from 'react-native';
 
@@ -61,6 +61,12 @@ export default function TabLayout() {
           title: 'Add',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.app" color={color} />,
         }}
+        listeners={() => ({
+          tabPress: (e) => {
+             e.preventDefault();
+             router.push('/add-modal');
+          },
+        })}
       />
 
       {/* 

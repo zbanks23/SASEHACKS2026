@@ -12,10 +12,20 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
+  const theme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+  const customTheme = {
+    ...theme,
+    colors: {
+      ...theme.colors,
+      background: 'transparent',
+    },
+  };
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <ThemeProvider value={customTheme}>
+      <Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, animation: 'fade' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="add-modal" options={{ presentation: 'transparentModal', headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
