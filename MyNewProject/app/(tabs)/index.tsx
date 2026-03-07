@@ -1,98 +1,130 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { StyleSheet, View, FlatList, Dimensions, ViewToken } from 'react-native';
+import { Video, ResizeMode, Audio } from 'expo-av';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { TopNavBar } from '@/components/TopNavBar';
+
+const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
+
+// Dummy video data for testing
+// FOR A HACKATHON: You can place your `.mp4` files in the `assets/videos` folder
+// Instead of a URL string, you `require()` the local file.
+// If the video doesn't exist yet, it will throw an error, so I'm leaving the 
+// remote URLs here as a fallback until you add your real files!
+const DUMMY_VIDEOS = [
+  // Example of how to load a local file when you have one:
+  // { id: 'local1', source: require('@/assets/videos/my-first-video.mp4') },
+
+  // Sticking with URLs until you add your local files so the app doesn't crash:
+  { id: 'local1', source: require('@/assets/videos/asmr1.mp4') }
+];
+
+/**
+ * Individual Video Item Component using expo-av
+ */
+const VideoItem = ({ source, isActive }: { source: any; isActive: boolean }) => {
+  const videoRef = useRef<Video>(null);
+
+  // Play/Pause automatically based on whether the video is focused on screen
+  useEffect(() => {
+    const handlePlayback = async () => {
+      try {
+        if (isActive) {
+          await videoRef.current?.playAsync();
+        } else {
+          await videoRef.current?.pauseAsync();
+          await videoRef.current?.setPositionAsync(0);
+        }
+      } catch (error) {
+        // Silently catch the 'Invalid view returned from registry' error.
+        // This safely handles the case where the user scrolls very fast 
+        // and the component unmounts before the play/pause promise resolves.
+      }
+    };
+
+    handlePlayback();
+  }, [isActive]);
+
+  // Format source for expo-av based on if it's a URL or a required local file
+  const videoSource = typeof source === 'string' ? { uri: source } : source;
+
+  return (
+    <View style={styles.videoContainer}>
+      <Video
+        ref={videoRef}
+        style={styles.video}
+        source={videoSource}
+        useNativeControls={false}
+        resizeMode={ResizeMode.CONTAIN} // Better quality, especially for horizontal game clips
+        isLooping
+        shouldPlay={isActive}
+      />
+    </View>
+  );
+};
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
+  const bottomTabBarHeight = useBottomTabBarHeight(); // Required so videos are positioned correctly with absolute tab bar
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  // Adjust container height to match screen exactly
+  // If tab bar is absolute and transparent, we want video to take full screen
+  const containerHeight = windowHeight;
+
+  // Detect which video is currently on screen to pause others
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+      setActiveVideoIndex(viewableItems[0].index);
+    }
+  }, []);
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50, // Video must be >50% visible to count as active
+  }).current;
+
+  return (
+    <View style={styles.container}>
+      {/* 
+        This is your full screen vertical swiping list!
+      */}
+      <FlatList
+        data={DUMMY_VIDEOS}
+        renderItem={({ item, index }) => (
+          <View style={{ height: containerHeight, width: windowWidth }}>
+            <VideoItem source={item.source} isActive={index === activeVideoIndex} />
+          </View>
+        )}
+        keyExtractor={(item) => item.id}
+        pagingEnabled // Snaps to each item
+        showsVerticalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        bounces={false}
+        snapToInterval={containerHeight}
+        snapToAlignment="start"
+        decelerationRate="fast"
+      />
+
+      {/* 
+        Top Navigation Bar floats over the FlatList
+      */}
+      <TopNavBar />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: '#000', // Black background is typical for video apps
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  videoContainer: {
+    flex: 1,
+    backgroundColor: '#000',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  video: {
+    width: '100%',
+    height: '100%',
   },
 });
