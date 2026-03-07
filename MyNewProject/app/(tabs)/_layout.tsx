@@ -1,10 +1,7 @@
 import { Tabs, router } from 'expo-router';
 import React from 'react';
-import { Platform, View, Text } from 'react-native';
-
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
@@ -22,74 +19,57 @@ export default function TabLayout() {
           backgroundColor: 'transparent',
           borderTopWidth: 0,
           elevation: 0, // for Android
-          // You can also add a subtle gradient background here if text is hard to read over videos!
         },
       }}>
       
-      {/* 
-        TAB 1: The main feed (What you see when the app opens) 
-        You can change 'name' to the actual filename (e.g., 'home' if the file is home.tsx)
-      */}
+      {/* 1. Settings (Gear) */}
       <Tabs.Screen
-        name="index"
+        name="profile"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      
-      {/* 
-        TAB 2: Your second feature 
-        Example alternative: Search, Discover, or a Map view
-      */}
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Discover',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
         }}
       />
 
-      {/* 
-        TAB 3: The middle action button 
-        This is often a "Create" or "Add" button right in the center.
-        For now, this links to 'add' which we will need to create (add.tsx)
-      */}
+      {/* 2. Notifications (Bell) */}
       <Tabs.Screen
-        name="add"
+        name="inbox"
         options={{
-          title: 'Add',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.app" color={color} />,
+          title: 'Notifications',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bell.fill" color={color} />,
+        }}
+      />
+
+      {/* 3. Upload/Scroll (Plus) - Opens the generator Modal */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Upload/Scroll',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.app.fill" color={color} />,
         }}
         listeners={() => ({
           tabPress: (e) => {
-             e.preventDefault();
-             router.push('/add-modal');
+            // This button navigates to the feed AND opens the generator modal!
+            router.push('/add-modal');
           },
         })}
       />
 
-      {/* 
-        TAB 4: Notifications or Messages 
-        For now, this links to 'inbox' which we will need to create (inbox.tsx)
-      */}
+      {/* 4. Search/Filter (Magnifying Glass) */}
       <Tabs.Screen
-        name="inbox"
+        name="explore"
         options={{
-          title: 'Inbox',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="envelope.fill" color={color} />,
+          title: 'Search',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass" color={color} />,
         }}
       />
 
-      {/* 
-        TAB 5: User Settings / Profile
-        For now, this links to 'profile' which we will need to create (profile.tsx)
-      */}
+      {/* 5. Saved (Bookmark) */}
       <Tabs.Screen
-        name="profile"
+        name="add"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          title: 'Saved',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bookmark.fill" color={color} />,
         }}
       />
     </Tabs>

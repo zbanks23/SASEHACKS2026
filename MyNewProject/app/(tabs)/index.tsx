@@ -102,18 +102,18 @@ export default function HomeScreen() {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [isCurrentVideoLoaded, setIsCurrentVideoLoaded] = useState(false); // Track scroll lock State
   const bottomTabBarHeight = useBottomTabBarHeight(); // Required so videos are positioned correctly with absolute tab bar
-  
+
   // Get script passing back from the generator Modal
   const { generatedScript } = useLocalSearchParams<{ generatedScript: string }>();
 
   // Parse script into an array based on "Topic X" headings
   const scriptsArray = useMemo(() => {
     if (!generatedScript) return [];
-    
+
     // Split by "Topic 1", "**Topic 2**", "Topic 3:", etc. using regex
     // The lookahead (?=...) keeps the delimiter so it stays part of the text
     const splitRegex = /(?=(?:\*\*?)?Topic \d+(?:\*\*?)?:?)/i;
-    
+
     return generatedScript
       .split(splitRegex)
       .map(s => s.trim())
@@ -187,18 +187,18 @@ export default function HomeScreen() {
       {/* Generated Script Overlay! */}
       {scriptsArray.length > 0 && scriptsArray[activeVideoIndex] && (
         <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20 }]}>
-           <ScrollView ref={scrollViewRef} style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
-              <ThemedText style={styles.subtitlesText}>{scriptsArray[activeVideoIndex]}</ThemedText>
-           </ScrollView>
+          <ScrollView ref={scrollViewRef} style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
+            <ThemedText style={styles.subtitlesText}>{scriptsArray[activeVideoIndex]}</ThemedText>
+          </ScrollView>
         </View>
       )}
 
       {/* Fallback Overlay if no text generated just to show where it goes */}
       {!generatedScript && (
         <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20, opacity: 0.5 }]}>
-           <ScrollView style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
-              <ThemedText style={styles.subtitlesText}>Tap the + button to generate scripts for your Reel</ThemedText>
-           </ScrollView>
+          <ScrollView style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
+            <ThemedText style={styles.subtitlesText}>Tap the + button to generate scripts for your Reel</ThemedText>
+          </ScrollView>
         </View>
       )}
 
