@@ -1,2 +1,1 @@
 # SASEHACKS2026
-# Khanh
