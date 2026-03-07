@@ -2,28 +2,45 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export function TopNavBar() {
+export function TopNavBar({ 
+  activeTab, 
+  onTabChange 
+}: { 
+  activeTab: 'reels' | 'questions'; 
+  onTabChange: (tab: 'reels' | 'questions') => void;
+}) {
   const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { top: insets.top + 10 }]}>
       {/* 
-        BUTTON 1: Left option 
-        You can change the text here to switch between different feeds or modes.
+        BUTTON 1: Reels (Left)
       */}
-      <TouchableOpacity style={styles.button}>
-        <Text style={[styles.text, styles.inactiveText]}>Left Option</Text>
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={() => onTabChange('reels')}
+      >
+        <Text style={[
+          styles.text, 
+          activeTab === 'reels' ? styles.activeText : styles.inactiveText
+        ]}>Reels</Text>
+        {activeTab === 'reels' && <View style={styles.indicator} />}
       </TouchableOpacity>
       
       <View style={styles.divider} />
 
       {/* 
-        BUTTON 2: Right option
-        Often the default active feed.
+        BUTTON 2: Questions (Right)
       */}
-      <TouchableOpacity style={styles.button}>
-        <Text style={[styles.text, styles.activeText]}>Right Option</Text>
-        <View style={styles.indicator} />
+      <TouchableOpacity 
+        style={styles.button}
+        onPress={() => onTabChange('questions')}
+      >
+        <Text style={[
+          styles.text, 
+          activeTab === 'questions' ? styles.activeText : styles.inactiveText
+        ]}>Questions</Text>
+        {activeTab === 'questions' && <View style={styles.indicator} />}
       </TouchableOpacity>
     </View>
   );

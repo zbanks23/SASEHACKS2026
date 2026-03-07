@@ -100,6 +100,7 @@ const VideoItem = ({ source, isActive, onVideoLoaded }: { source: any; isActive:
 
 export default function HomeScreen() {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
+  const [activeTopTab, setActiveTopTab] = useState<'reels' | 'questions'>('reels');
   const [isCurrentVideoLoaded, setIsCurrentVideoLoaded] = useState(false); // Track scroll lock State
   const bottomTabBarHeight = useBottomTabBarHeight(); // Required so videos are positioned correctly with absolute tab bar
 
@@ -159,50 +160,61 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={feedVideos}
-        renderItem={({ item, index }) => (
-          <View key={item.uniqueKey} style={{ height: containerHeight, width: windowWidth }}>
-            <VideoItem
-              source={item.source}
-              isActive={index === activeVideoIndex}
-              onVideoLoaded={() => setIsCurrentVideoLoaded(true)} // Unlock scrolling when ready!
-            />
-          </View>
-        )}
-        keyExtractor={(item) => item.uniqueKey}
-        pagingEnabled // Snaps to each item
-        showsVerticalScrollIndicator={false}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        bounces={false}
-        snapToInterval={containerHeight}
-        snapToAlignment="start"
-        decelerationRate="fast"
-        windowSize={5} // Keep a few items rendered off-screen
-        initialNumToRender={3}
-        scrollEnabled={isCurrentVideoLoaded} // PERFORMANCE FIX: Only allow scrolling if the current video is rendering!
+      {activeTopTab === 'reels' ? (
+        <>
+          <FlatList
+            data={feedVideos}
+            renderItem={({ item, index }) => (
+              <View key={item.uniqueKey} style={{ height: containerHeight, width: windowWidth }}>
+                <VideoItem
+                  source={item.source}
+                  isActive={index === activeVideoIndex}
+                  onVideoLoaded={() => setIsCurrentVideoLoaded(true)} // Unlock scrolling when ready!
+                />
+              </View>
+            )}
+            keyExtractor={(item) => item.uniqueKey}
+            pagingEnabled // Snaps to each item
+            showsVerticalScrollIndicator={false}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            bounces={false}
+            snapToInterval={containerHeight}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            windowSize={5} // Keep a few items rendered off-screen
+            initialNumToRender={3}
+            scrollEnabled={isCurrentVideoLoaded} // PERFORMANCE FIX: Only allow scrolling if the current video is rendering!
+          />
+
+          {/* Generated Script Overlay! */}
+          {scriptsArray.length > 0 && scriptsArray[activeVideoIndex] && (
+            <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20 }]}>
+              <ScrollView ref={scrollViewRef} style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
+                <ThemedText style={styles.subtitlesText}>{scriptsArray[activeVideoIndex]}</ThemedText>
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Fallback Overlay if no text generated just to show where it goes */}
+          {!generatedScript && (
+            <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20, opacity: 0.5 }]}>
+              <ScrollView style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
+                <ThemedText style={styles.subtitlesText}>Tap the + button to generate scripts for your Reel</ThemedText>
+              </ScrollView>
+            </View>
+          )}
+        </>
+      ) : (
+        <View style={styles.placeholderContainer}>
+          <ThemedText style={styles.placeholderText}>Questions from users will appear here!</ThemedText>
+        </View>
+      )}
+
+      <TopNavBar 
+        activeTab={activeTopTab} 
+        onTabChange={setActiveTopTab} 
       />
-
-      {/* Generated Script Overlay! */}
-      {scriptsArray.length > 0 && scriptsArray[activeVideoIndex] && (
-        <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20 }]}>
-          <ScrollView ref={scrollViewRef} style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
-            <ThemedText style={styles.subtitlesText}>{scriptsArray[activeVideoIndex]}</ThemedText>
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Fallback Overlay if no text generated just to show where it goes */}
-      {!generatedScript && (
-        <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20, opacity: 0.5 }]}>
-          <ScrollView style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
-            <ThemedText style={styles.subtitlesText}>Tap the + button to generate scripts for your Reel</ThemedText>
-          </ScrollView>
-        </View>
-      )}
-
-      <TopNavBar />
     </View>
   );
 }
@@ -243,5 +255,16 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 4,
+  },
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  placeholderText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 18,
+    textAlign: 'center',
   }
 });
