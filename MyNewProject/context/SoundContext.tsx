@@ -26,13 +26,22 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
     const loadSettings = async () => {
       try {
         const savedViewVol = await AsyncStorage.getItem(STORAGE_KEY_VIDEO);
-        if (savedViewVol !== null) setVideoVolumeState(parseFloat(savedViewVol));
+        if (savedViewVol !== null) {
+          const val = parseFloat(savedViewVol);
+          if (!isNaN(val)) setVideoVolumeState(val);
+        }
 
         const savedTTSVol = await AsyncStorage.getItem(STORAGE_KEY_TTS);
-        if (savedTTSVol !== null) setTtsVolumeState(parseFloat(savedTTSVol));
+        if (savedTTSVol !== null) {
+          const val = parseFloat(savedTTSVol);
+          if (!isNaN(val)) setTtsVolumeState(val);
+        }
 
         const savedSpeed = await AsyncStorage.getItem(STORAGE_KEY_SPEED);
-        if (savedSpeed !== null) setPlaybackSpeedState(parseFloat(savedSpeed));
+        if (savedSpeed !== null) {
+          const val = parseFloat(savedSpeed);
+          if (!isNaN(val)) setPlaybackSpeedState(val);
+        }
       } catch (e) {
         console.error('Failed to load settings', e);
       }

@@ -18,7 +18,8 @@ const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
 // Available source videos
 const SOURCE_VIDEOS = [
   { id: 'asmr1', source: require('@/assets/videos/asmr1.mp4') },
-  { id: 'parkour1', source: require('@/assets/videos/minecraftparkour1.mp4') }
+  { id: 'parkour2', source: require('@/assets/videos/minecraftparkour2.mp4') }
+  { id: 'subwaysurfers2', source: require('@/assets/videos/subwaysurfers2.mp4') }
 ];
 
 // Helper to get a random video from our sources
@@ -45,8 +46,9 @@ const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded, i
   // Explicitly set volume and rate when they change or when the video becomes active
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.setVolumeAsync(videoVolume).catch(() => {});
-      videoRef.current.setRateAsync(playbackSpeed, true).catch(() => {});
+      console.log(`[VideoItem] Volume: ${videoVolume}, Rate: ${playbackSpeed}, Active: ${isActive}, Loaded: ${isLoaded}`);
+      videoRef.current.setVolumeAsync(videoVolume).catch(() => { });
+      videoRef.current.setRateAsync(playbackSpeed, true).catch(() => { });
     }
   }, [videoVolume, playbackSpeed, isActive, isLoaded]);
 
@@ -112,9 +114,9 @@ const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded, i
   const videoSource = typeof source === 'string' ? { uri: source } : source;
 
   return (
-    <TouchableOpacity 
-      style={styles.videoContainer} 
-      activeOpacity={1} 
+    <TouchableOpacity
+      style={styles.videoContainer}
+      activeOpacity={1}
       onPress={onTogglePause}
     >
       <Video
@@ -134,7 +136,7 @@ const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded, i
         posterSource={require('@/assets/images/partial-react-logo.png')} // Show something while loading
         posterStyle={styles.poster}
       />
-      
+
       {/* Pause Icon Overlay */}
       {isUserPaused && (
         <View style={styles.pauseOverlay}>
@@ -165,7 +167,7 @@ const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScr
   const handleRetryGeneration = async () => {
     const { generateQuizForReel } = await import('@/utils/gemini');
     const { getScriptById } = await import('@/utils/storage');
-    
+
     setIsRetrying(true);
     setError(null);
     try {
@@ -181,10 +183,10 @@ const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScr
             isSubmitted: false,
             score: 0
           };
-          await import('@react-native-async-storage/async-storage').then(a => 
+          await import('@react-native-async-storage/async-storage').then(a =>
             a.default.setItem('@reel_scripts_history', JSON.stringify(history))
           );
-          
+
           // Notify parent to refresh
           const updated = await getScriptById(script.id);
           if (updated) onUpdateScript(updated);
@@ -232,7 +234,7 @@ const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScr
 
   const handleSubmit = async () => {
     if (isSubmitted) return;
-    
+
     let score = 0;
     userAnswers.forEach((ans, idx) => {
       if (ans === script.questions![idx].correctAnswerIndex) score++;
@@ -261,14 +263,14 @@ const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScr
     await updateQuizStatus(script.id, newStatus);
   };
 
-  const score = userAnswers.reduce((acc, ans, idx) => 
+  const score = userAnswers.reduce((acc, ans, idx) =>
     ans === script.questions![idx].correctAnswerIndex ? (acc as number) + 1 : acc, 0
   );
 
   return (
     <ScrollView style={styles.quizScroll} contentContainerStyle={styles.quizContainer}>
       <ThemedText type="title" style={styles.quizTitle}>Knowledge Check 🧠</ThemedText>
-      
+
       {isSubmitted && (
         <View style={styles.scoreCard}>
           <ThemedText style={styles.scoreText}>Your Score: {score} / {script.questions.length}</ThemedText>
@@ -284,37 +286,37 @@ const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScr
           <ThemedText style={styles.questionText}>{qIdx + 1}. {q.question}</ThemedText>
           <View style={styles.optionsContainer}>
             {q.options.map((option, oIdx) => {
-                const isSelected = userAnswers[qIdx] === oIdx;
-                const isCorrect = q.correctAnswerIndex === oIdx;
-                const showResult = isSubmitted;
-                
-                let borderColor = '#333';
-                let backgroundColor = 'transparent';
-                if (isSelected) borderColor = '#0a7ea4';
-                if (showResult) {
-                    if (isCorrect) {
-                        borderColor = '#4CAF50';
-                        backgroundColor = 'rgba(76, 175, 80, 0.1)';
-                    } else if (isSelected) {
-                        borderColor = '#F44336';
-                        backgroundColor = 'rgba(244, 67, 54, 0.1)';
-                    }
-                }
+              const isSelected = userAnswers[qIdx] === oIdx;
+              const isCorrect = q.correctAnswerIndex === oIdx;
+              const showResult = isSubmitted;
 
-                return (
-                  <TouchableOpacity 
-                    key={oIdx} 
-                    style={[styles.optionButton, { borderColor, backgroundColor }]}
-                    onPress={() => handleSelectOption(qIdx, oIdx)}
-                    disabled={isSubmitted}
-                  >
-                    <ThemedText style={[styles.optionText, isSelected && { color: '#fff', fontWeight: 'bold' }]}>
-                      {option}
-                    </ThemedText>
-                    {showResult && isCorrect && <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />}
-                    {showResult && isSelected && !isCorrect && <Ionicons name="close-circle" size={20} color="#F44336" />}
-                  </TouchableOpacity>
-                );
+              let borderColor = '#333';
+              let backgroundColor = 'transparent';
+              if (isSelected) borderColor = '#0a7ea4';
+              if (showResult) {
+                if (isCorrect) {
+                  borderColor = '#4CAF50';
+                  backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                } else if (isSelected) {
+                  borderColor = '#F44336';
+                  backgroundColor = 'rgba(244, 67, 54, 0.1)';
+                }
+              }
+
+              return (
+                <TouchableOpacity
+                  key={oIdx}
+                  style={[styles.optionButton, { borderColor, backgroundColor }]}
+                  onPress={() => handleSelectOption(qIdx, oIdx)}
+                  disabled={isSubmitted}
+                >
+                  <ThemedText style={[styles.optionText, isSelected && { color: '#fff', fontWeight: 'bold' }]}>
+                    {option}
+                  </ThemedText>
+                  {showResult && isCorrect && <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />}
+                  {showResult && isSelected && !isCorrect && <Ionicons name="close-circle" size={20} color="#F44336" />}
+                </TouchableOpacity>
+              );
             })}
           </View>
           {isSubmitted && (
@@ -327,15 +329,15 @@ const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScr
       ))}
 
       {!isSubmitted && (
-        <TouchableOpacity 
-          style={[styles.submitButton, userAnswers.includes(null) && styles.submitButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.submitButton, userAnswers.includes(null) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={userAnswers.includes(null)}
         >
           <Text style={styles.submitButtonText}>Submit Quiz</Text>
         </TouchableOpacity>
       )}
-      
+
       <View style={{ height: 100 }} />
     </ScrollView>
   );
@@ -358,8 +360,8 @@ export default function HomeScreen() {
           playsInSilentModeIOS: true,
           allowsRecordingIOS: false,
           staysActiveInBackground: false,
-          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+          interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+          interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
           playThroughEarpieceAndroid: false,
         });
       } catch (e) {
@@ -457,12 +459,12 @@ export default function HomeScreen() {
     if (activeScriptText) {
       setActiveVideoIndex(0);
       setIsCurrentVideoLoaded(false);
-      
+
       // If we loaded a history script that already has downloaded audio, use it!
       if (currentSavedScript?.audioUris) {
-         setAudioUris(currentSavedScript.audioUris);
+        setAudioUris(currentSavedScript.audioUris);
       } else {
-         setAudioUris(initialAudioUris); // Otherwise fallback to router params
+        setAudioUris(initialAudioUris); // Otherwise fallback to router params
       }
 
       // Give the layout a frame to adjust before snapping the video list to the top
@@ -489,7 +491,7 @@ export default function HomeScreen() {
       if (loadedAudioUriRef.current !== (targetUri || null) && !!loadedAudioUriRef.current) {
         console.log(`🔇 [expo-av] Target video index changed. Stopping previous audio.`);
         if (sound) {
-           await sound.unloadAsync();
+          await sound.unloadAsync();
         }
         loadedAudioUriRef.current = null;
       }
@@ -499,27 +501,20 @@ export default function HomeScreen() {
 
       // 2. Play the new audio if we aren't already!
       if (!unmounted && loadedAudioUriRef.current !== targetUri) {
-         try {
-             console.log(`🔊 [expo-av] Attempting to play audio from URI: ${targetUri}`);
-             
-             // Ensure audio plays even if iOS physical silent switch is flipped
-             await Audio.setAudioModeAsync({
-                playsInSilentModeIOS: true,
-                staysActiveInBackground: false,
-                shouldDuckAndroid: true,
-             });
+        try {
+          console.log(`🔊 [expo-av] Attempting to play audio from URI: ${targetUri}`);
 
-             const { sound: newSound } = await Audio.Sound.createAsync(
-               { uri: targetUri },
-               { shouldPlay: !isUserPaused, volume: ttsVolume, isLooping: true }
-             );
-             
-             console.log(`▶️ [expo-av] Audio playback started successfully for index ${activeVideoIndex}!`);
-             loadedAudioUriRef.current = targetUri;
-             setSound(newSound);
-         } catch (e) {
-            console.error("❌ [expo-av] Failed to play TTS audio:", e);
-         }
+          const { sound: newSound } = await Audio.Sound.createAsync(
+            { uri: targetUri },
+            { shouldPlay: !isUserPaused, volume: ttsVolume, isLooping: true }
+          );
+
+          console.log(`▶️ [expo-av] Audio playback started successfully for index ${activeVideoIndex}!`);
+          loadedAudioUriRef.current = targetUri;
+          setSound(newSound);
+        } catch (e) {
+          console.error("❌ [expo-av] Failed to play TTS audio:", e);
+        }
       }
     }
 
@@ -535,20 +530,20 @@ export default function HomeScreen() {
 
   // Dedicated unmount cleanup for when the entire HomeScreen unmounts
   useEffect(() => {
-      return () => {
-          if (sound) {
-              sound.unloadAsync();
-          }
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
       }
+    }
   }, [sound]);
 
   // Handle pausing/playing the TTS audio when the user taps the video
   useEffect(() => {
     if (sound) {
       if (isUserPaused) {
-        sound.pauseAsync().catch(() => {});
+        sound.pauseAsync().catch(() => { });
       } else {
-        sound.playAsync().catch(() => {});
+        sound.playAsync().catch(() => { });
       }
     }
   }, [sound, isUserPaused]);
@@ -556,7 +551,7 @@ export default function HomeScreen() {
   // Dynamically update the volume of the TTS audio if the user changes it in settings while listening
   useEffect(() => {
     if (sound) {
-       sound.setVolumeAsync(ttsVolume).catch(() => {});
+      sound.setVolumeAsync(ttsVolume).catch(() => { });
     }
   }, [sound, ttsVolume]);
 
@@ -569,9 +564,9 @@ export default function HomeScreen() {
             data={feedVideos}
             renderItem={({ item, index }) => (
               <View key={item.uniqueKey} style={{ height: containerHeight, width: windowWidth }}>
-                <VideoItem 
-                  source={item.source} 
-                  isActive={activeVideoIndex === index} 
+                <VideoItem
+                  source={item.source}
+                  isActive={activeVideoIndex === index}
                   isAppFocused={activeTopTab === 'reels' && !isChatOpen && isTabBarFocused}
                   onVideoLoaded={() => setIsCurrentVideoLoaded(true)}
                   isUserPaused={isUserPaused && activeVideoIndex === index}
@@ -635,12 +630,12 @@ export default function HomeScreen() {
         )
       )}
 
-      <TopNavBar 
-        activeTab={activeTopTab} 
-        onTabChange={setActiveTopTab} 
+      <TopNavBar
+        activeTab={activeTopTab}
+        onTabChange={setActiveTopTab}
       />
 
-      <ChatModal 
+      <ChatModal
         isVisible={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         topicContext={scriptsArray[activeVideoIndex] || ''}
