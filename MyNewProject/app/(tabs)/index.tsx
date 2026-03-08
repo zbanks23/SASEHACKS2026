@@ -31,11 +31,14 @@ const generateVideoFeed = () => {
   return Array.from({ length: 50 }, (_, i) => getRandomVideo(i));
 };
 
+import { useSound } from '@/context/SoundContext';
+
 const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any; isActive: boolean; onVideoLoaded: () => void }) => {
   const videoRef = useRef<Video>(null);
   const [hasJumpedToRandomTime, setHasJumpedToRandomTime] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isUserPaused, setIsUserPaused] = useState(false);
+  const { videoVolume } = useSound();
 
   // Safely tell the parent list we are ready to be scrolled from,
   // whenever we are both active and loaded!
@@ -109,6 +112,7 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
         resizeMode={ResizeMode.COVER}
         isLooping
         shouldPlay={isActive && !isUserPaused}
+        volume={videoVolume}
         onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
         progressUpdateIntervalMillis={1000} // PERFORMANCE: Reduce update frequency
         posterSource={require('@/assets/images/partial-react-logo.png')} // Show something while loading
