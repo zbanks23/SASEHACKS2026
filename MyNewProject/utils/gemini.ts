@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import dirtyJSON from 'dirty-json';
 
 const ai = new GoogleGenAI({
     apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY
@@ -82,7 +83,7 @@ export async function askGemini(prompt: string, base64Image?: string, imageMimeT
                     CRITICAL FORMATTING RULES:
                     1. Title each distinct video script exactly as 'Topic X:' (e.g., 'Topic 1:', 'Topic 2:'). Do NOT use asterisks or markdown around the titles. Use 'Topic ' followed by the number and a colon.
                     2. The output MUST be a clean, highly readable script for a human to follow along and read on screen. Do NOT include ANY internal director notes, TTS instructions, or markdown formatting (no asterisks, bolding, etc.).
-                    3. For any math symbols, formulas, or expressions, seamlessly integrate the actual formula into the text so it is easy to read directly (e.g., 'The equation E=mc² shows us that...'). Do NOT spell out the audio pronunciation.
+                    3. For any math symbols, formulas, or expressions, seamlessly integrate the actual formula into the text so it is easy to read directly (e.g., 'The equation E=mc² shows us that...'). Do NOT spell out the audio pronunciation. CRITICAL: Provide all LaTeX equations escaped correctly for JSON. (e.g. use \\\\. instead of \\).
                     4. For the ENTIRE set of topics, generate exactly 5 high-quality quiz-style multiple choice questions for the user to test their knowledge.
                     5. RETURN THE RESULT ONLY AS A VALID JSON OBJECT with the following structure:
                     {
@@ -108,9 +109,35 @@ export async function askGemini(prompt: string, base64Image?: string, imageMimeT
                 return null;
             }
             try {
-                return JSON.parse(text) as { title: string, script: string, questions: any[] };
+                // Pre-process the text because Gemini sometimes returns invalid escape sequences inside JSON values
+                // 1. Extract just the JSON object from the text in case Gemini added a preamble or markdown
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    console.error("No valid JSON structure found in Gemini text response:", text);
+                    return null;
+                }
+                let sanitizedText = jsonMatch[0];
+                
+                // 2. Just aggressively wipe out weird rogue escapes like \e or \_ or \> that JSON hates
+                sanitizedText = sanitizedText.replace(/\\e/g, 'e');
+                sanitizedText = sanitizedText.replace(/\\_/g, '_');
+                sanitizedText = sanitizedText.replace(/\\>/g, '>');
+                sanitizedText = sanitizedText.replace(/\\</g, '<');
+                
+                // 4. Double escape backslashes so they survive the JSON.parse
+                // Look for backslashes that are NOT followed by a valid JSON escape character (", \, /, b, f, n, r, t, u)
+                sanitizedText = sanitizedText.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+
+                try {
+                    return JSON.parse(sanitizedText) as { title: string, script: string, questions: any[] };
+                } catch (firstError) {
+                    console.warn(`Standard JSON.parse failed. Attempting dirty-json fallback...`);
+                    // Fall back to dirty-json which is much more lenient about unquoted keys and single quotes
+                    return dirtyJSON.parse(sanitizedText) as { title: string, script: string, questions: any[] };
+                }
             } catch (e) {
-                console.error("JSON Parse Error in Gemini response:", e, text);
+                console.error("JSON Parse Error in Gemini response (even with dirty-json):", e);
+                console.error("Original Text:", text);
                 return null;
             }
         });
