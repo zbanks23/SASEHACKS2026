@@ -609,7 +609,7 @@ export default function HomeScreen() {
       // We only unload when we INTENTIONALLY swap the audio URI above.
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeVideoIndex, scriptsArray, isCurrentVideoLoaded, audioUris]);
+  }, [activeVideoIndex, scriptsArray, isCurrentVideoLoaded, audioUris, isTutorialActive, currentStep]);
 
   // Dedicated unmount cleanup for when the entire HomeScreen unmounts
   useEffect(() => {

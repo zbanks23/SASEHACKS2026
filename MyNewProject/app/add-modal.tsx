@@ -18,7 +18,7 @@ type InputMode = 'none' | 'text' | 'image' | 'pdf';
 
 export default function AddModalScreen() {
   const router = useRouter();
-  const { currentStep, nextStep } = useTutorial();
+  const { currentStep, nextStep, setStep } = useTutorial();
 
   const [inputMode, setInputMode] = useState<InputMode>('none');
   const [prompt, setPrompt] = useState('');
@@ -179,7 +179,9 @@ export default function AddModalScreen() {
         );
 
         // Advance tutorial if we were waiting for an upload
-        if (currentStep === TutorialStep.UPLOAD_SPECIFIC_INSTRUCTION) nextStep();
+        if (currentStep === TutorialStep.UPLOAD_SPECIFIC_INSTRUCTION) {
+          setStep(TutorialStep.POST_UPLOAD_AUDIO_WAIT);
+        }
 
         // Pass everything back!
         router.replace({
