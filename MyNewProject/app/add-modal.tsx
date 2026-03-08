@@ -161,6 +161,9 @@ export default function AddModalScreen() {
 
         const savedItem = await saveScriptToHistory(script, finalTitle, questions || undefined);
 
+        // Advance tutorial if we were waiting for an upload
+        if (currentStep === TutorialStep.UPLOAD_SPECIFIC_INSTRUCTION) nextStep();
+
         // Pass everything back!
         router.replace({
           pathname: '/(tabs)',
@@ -340,11 +343,20 @@ export default function AddModalScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <TutorialOverlay
-        step={TutorialStep.UPLOAD_EXPLAIN}
-        message="You can upload each of the file types available."
-        subMessage="Choose Write Text and enter 'What's a hackathon?'"
-      />
+      {inputMode === 'none' && (
+        <>
+          <TutorialOverlay
+            step={TutorialStep.UPLOAD_EXPLAIN}
+            message="You can upload each of the file types available."
+          />
+
+          <TutorialOverlay
+            step={TutorialStep.UPLOAD_SPECIFIC_INSTRUCTION}
+            message='Choose "Write Text" and enter "What&apos;s a hackathon?"'
+            hideFooter={true}
+          />
+        </>
+      )}
     </View>
   );
 }

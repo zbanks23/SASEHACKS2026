@@ -120,6 +120,7 @@ export default function SoundSettingsScreen() {
         message="You can see your saved content here"
         targetRect={{ x: width * 0.9 - 30, y: height - 60, width: 60, height: 60 }} // Point to last tab (Saved)
         arrowDirection="down"
+        hideFooter={true}
       />
     </View>
   );

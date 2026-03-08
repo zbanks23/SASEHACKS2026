@@ -757,6 +757,7 @@ export default function HomeScreen() {
         message="Click here to upload"
         targetRect={{ x: windowWidth / 2 - 30, y: windowHeight - 60, width: 60, height: 60 }} // Approx middle tab
         arrowDirection="down"
+        hideFooter={true}
       />
 
       <TutorialOverlay
@@ -771,20 +772,23 @@ export default function HomeScreen() {
         message="Click here for your personalized assistant"
         targetRect={chatButtonRect}
         arrowDirection="right"
+        hideFooter={true}
       />
 
       <TutorialOverlay
         step={TutorialStep.QUESTIONS_TAB_POINT}
-        message="Click here for questions about the material."
-        targetRect={{ x: windowWidth * 0.75 - 50, y: 100, width: 100, height: 40 }} // Point to Questions tab in TopNavBar
+        message="Click here for questions about the material"
+        targetRect={{ x: windowWidth * 0.75 - 40, y: 10, width: 80, height: 60 }}
         arrowDirection="up"
+        hideFooter={true}
       />
 
       <TutorialOverlay
         step={TutorialStep.SETTINGS_TAB_POINT}
-        message="Click here for content settings."
-        targetRect={{ x: windowWidth * 0.1 - 30, y: windowHeight - 60, width: 60, height: 60 }} // Point to first tab (Settings)
+        message="Click here for content settings"
+        targetRect={{ x: windowWidth * 0.1 - 30, y: windowHeight - 60, width: 60, height: 60 }}
         arrowDirection="down"
+        hideFooter={true}
       />
 
       <TutorialOverlay

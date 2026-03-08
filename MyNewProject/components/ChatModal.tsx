@@ -178,6 +178,7 @@ export function ChatModal({ isVisible, onClose, topicContext }: ChatModalProps) 
           subMessage="Click the X to close the menu"
           targetRect={closeButtonRect}
           arrowDirection="down"
+          hideFooter={true}
         />
       </KeyboardAvoidingView>
     </Modal>

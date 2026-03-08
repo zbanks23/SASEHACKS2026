@@ -163,8 +163,9 @@ export default function SavedScreen() {
 
       <TutorialOverlay
         step={TutorialStep.DELETE_INDICATOR}
-        message="Slide left to edit slides or delete old material"
+        message="Slide left to edit title or delete material" // Updated text
         arrowDirection="left"
+        hideFooter={true}
       />
 
       <TutorialOverlay
@@ -172,6 +173,7 @@ export default function SavedScreen() {
         message="delete the current prompt"
         targetRect={{ x: width - 80, y: 150, width: 80, height: 80 }} // Positioned over the right actions area
         arrowDirection="right"
+        hideFooter={true}
       />
     </View>
   );
