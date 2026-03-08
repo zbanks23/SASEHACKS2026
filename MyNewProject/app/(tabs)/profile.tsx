@@ -7,10 +7,12 @@ import { useTutorial, TutorialStep } from '@/context/TutorialContext';
 import { TutorialOverlay } from '@/components/TutorialOverlay';
 import { Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 const { width, height } = Dimensions.get('window');
 
 export default function SoundSettingsScreen() {
+  const bottomTabBarHeight = useBottomTabBarHeight();
   const { 
     videoVolume, setVideoVolume, 
     ttsVolume, setTtsVolume,
@@ -30,7 +32,7 @@ export default function SoundSettingsScreen() {
         <Text style={styles.headerTitle}>Sound & Speed</Text>
       </View>
 
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingBottom: bottomTabBarHeight + 20 }]}>
         <View style={styles.section}>
           <View style={styles.labelContainer}>
             <Ionicons name="film-outline" size={24} color="#FFF" />
@@ -129,80 +131,80 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#222',
     backgroundColor: '#111',
   },
   headerTitle: {
     color: '#FFF',
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
   },
   content: {
-    padding: 20,
-    gap: 24,
+    padding: 16,
+    gap: 16,
   },
   section: {
-    gap: 8,
+    gap: 4,
   },
   labelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   sectionTitle: {
     color: '#FFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     flex: 1,
   },
   percentage: {
     color: '#888',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
   },
   slider: {
     width: '100%',
-    height: 30,
+    height: 24,
   },
   helperText: {
     color: '#666',
-    fontSize: 14,
+    fontSize: 12,
   },
   infoBox: {
     flexDirection: 'row',
     backgroundColor: '#111',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
-    gap: 12,
-    marginTop: 12,
+    gap: 8,
+    marginTop: 4,
     borderWidth: 1,
     borderColor: '#222',
   },
   infoText: {
     color: '#888',
-    fontSize: 14,
+    fontSize: 12,
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   replayButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#111',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#222',
-    gap: 10,
-    marginTop: 12,
+    gap: 8,
+    marginTop: 4,
   },
   replayButtonText: {
     color: '#007AFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
 });

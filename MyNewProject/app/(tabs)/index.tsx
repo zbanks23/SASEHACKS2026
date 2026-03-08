@@ -3,7 +3,7 @@ import { StyleSheet, View, FlatList, Dimensions, ViewToken, ScrollView, Touchabl
 import { Video, ResizeMode, AVPlaybackStatus, Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useIsFocused } from '@react-navigation/native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 // import { generateTTS } from '@/utils/elevenlabs'; // Commented out to save credits
@@ -13,7 +13,7 @@ import { TutorialOverlay } from '@/components/TutorialOverlay';
 
 import { TopNavBar } from '@/components/TopNavBar';
 import { ChatModal } from '@/components/ChatModal';
-import { getScriptById, updateQuizStatus, SavedScript, QuizStatus } from '@/utils/storage';
+import { getScriptById, updateQuizStatus, SavedScript, QuizStatus, getScriptHistory } from '@/utils/storage';
 
 const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
 
@@ -385,6 +385,7 @@ export default function HomeScreen() {
   const [currentSavedScript, setCurrentSavedScript] = useState<SavedScript | null>(null);
   const bottomTabBarHeight = useBottomTabBarHeight(); // Required so videos are positioned correctly with absolute tab bar
   const isTabBarFocused = useIsFocused(); // Track if the user navigated away from the home screen entirely
+  const router = useRouter();
 
   // GLOBAL AUDIO SETUP
   useEffect(() => {
@@ -448,12 +449,31 @@ export default function HomeScreen() {
     }
   }, [currentStep]);
 
-  // Load the full script item if we have an ID
-  useEffect(() => {
-    if (scriptId) {
-      getScriptById(scriptId).then(setCurrentSavedScript);
-    }
-  }, [scriptId]);
+  const [hasSavedReels, setHasSavedReels] = useState(false);
+
+  // Load the full script item if we have an ID, and check if it still exists
+  useFocusEffect(
+    useCallback(() => {
+      const verifyState = async () => {
+        const history = await getScriptHistory();
+        setHasSavedReels(history.length > 0);
+
+        if (scriptId) {
+          const script = history.find(s => s.id === scriptId);
+          if (script) {
+            setCurrentSavedScript(script);
+          } else {
+            // It was deleted! Clear the current script.
+            setCurrentSavedScript(null);
+            router.setParams({ scriptId: '', generatedScript: '', initialAudio: '' });
+          }
+        } else {
+          setCurrentSavedScript(null);
+        }
+      };
+      verifyState();
+    }, [scriptId, router])
+  );
 
   const activeScriptText = currentSavedScript?.script || generatedScript;
 
@@ -622,78 +642,82 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {activeTopTab === 'reels' ? (
         <>
-          <FlatList
-            ref={flatListRef}
-            data={feedVideos}
-            renderItem={({ item, index }) => (
-              <View key={item.uniqueKey} style={{ height: containerHeight, width: windowWidth }}>
-                <VideoItem
-                  source={item.source}
-                  isActive={activeVideoIndex === index}
-                  isAppFocused={activeTopTab === 'reels' && isTabBarFocused && (!isChatOpen || isTutorialActive)}
-                  onVideoLoaded={() => setIsCurrentVideoLoaded(true)}
-                  isUserPaused={isUserPaused && activeVideoIndex === index}
-                  onTogglePause={() => setIsUserPaused(!isUserPaused)}
-                  onForcePause={() => setIsUserPaused(true)}
-                />
-              </View>
-            )}
-            keyExtractor={(item) => item.uniqueKey}
-            pagingEnabled // Snaps to each item
-            showsVerticalScrollIndicator={false}
-            onViewableItemsChanged={onViewableItemsChanged}
-            viewabilityConfig={viewabilityConfig}
-            bounces={false}
-            snapToInterval={containerHeight}
-            snapToAlignment="start"
-            decelerationRate="fast"
-            windowSize={2} // PERFORMANCE: Even tighter window for slower devices
-            initialNumToRender={1}
-            maxToRenderPerBatch={1}
-            updateCellsBatchingPeriod={50}
-            removeClippedSubviews={true} // PERFORMANCE: Unmount off-screen views
-            scrollEnabled={isCurrentVideoLoaded} // PERFORMANCE FIX: Only allow scrolling if the current video is rendering!
-          />
+          {scriptsArray.length > 0 ? (
+            <FlatList
+              ref={flatListRef}
+              data={feedVideos}
+              renderItem={({ item, index }) => (
+                <View key={item.uniqueKey} style={{ height: containerHeight, width: windowWidth }}>
+                  <VideoItem
+                    source={item.source}
+                    isActive={activeVideoIndex === index}
+                    isAppFocused={activeTopTab === 'reels' && isTabBarFocused && (!isChatOpen || isTutorialActive)}
+                    onVideoLoaded={() => setIsCurrentVideoLoaded(true)}
+                    isUserPaused={isUserPaused && activeVideoIndex === index}
+                    onTogglePause={() => setIsUserPaused(!isUserPaused)}
+                    onForcePause={() => setIsUserPaused(true)}
+                  />
+                </View>
+              )}
+              keyExtractor={(item) => item.uniqueKey}
+              pagingEnabled // Snaps to each item
+              showsVerticalScrollIndicator={false}
+              onViewableItemsChanged={onViewableItemsChanged}
+              viewabilityConfig={viewabilityConfig}
+              bounces={false}
+              snapToInterval={containerHeight}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              windowSize={2} // PERFORMANCE: Even tighter window for slower devices
+              initialNumToRender={1}
+              maxToRenderPerBatch={1}
+              updateCellsBatchingPeriod={50}
+              removeClippedSubviews={true} // PERFORMANCE: Unmount off-screen views
+              scrollEnabled={isCurrentVideoLoaded} // PERFORMANCE FIX: Only allow scrolling if the current video is rendering!
+            />
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Ionicons name="cloud-upload-outline" size={64} color="#FFF" style={{marginBottom: 16}} />
+              <ThemedText style={[styles.placeholderText, { textAlign: 'center' }]}>
+                {hasSavedReels ? "Select a reel from the Saved tab or press + to upload file" : "Press + to upload file"}
+              </ThemedText>
+            </View>
+          )}
 
           {/* Subtitle Overlay */}
-          <View style={styles.subtitlesWrapper} pointerEvents="box-none">
-            {scriptsArray[activeVideoIndex] ? (
-              <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 70 }]}>
-                <ScrollView ref={scrollViewRef} style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
-                  <ThemedText style={styles.subtitlesText}>{scriptsArray[activeVideoIndex]}</ThemedText>
-                </ScrollView>
-              </View>
-            ) : null}
-
-            {/* Fallback Overlay if no text generated just to show where it goes */}
-            {!activeScriptText && (
-              <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 70, opacity: 0.5 }]}>
-                <ScrollView style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
-                  <ThemedText style={styles.subtitlesText}>Tap the + button to generate scripts for your Reel</ThemedText>
-                </ScrollView>
-              </View>
-            )}
-          </View>
+          {scriptsArray.length > 0 && (
+            <View style={styles.subtitlesWrapper} pointerEvents="box-none">
+              {scriptsArray[activeVideoIndex] ? (
+                <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 70 }]}>
+                  <ScrollView ref={scrollViewRef} style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
+                    <ThemedText style={styles.subtitlesText}>{scriptsArray[activeVideoIndex]}</ThemedText>
+                  </ScrollView>
+                </View>
+              ) : null}
+            </View>
+          )}
 
           {/* Action Buttons Panel */}
-          <View style={[styles.rightActionPanel, { bottom: bottomTabBarHeight + 200 }]}>
-            <TouchableOpacity 
-              ref={chatButtonRef}
-              style={styles.actionButton} 
-              onPress={() => {
-                if (currentStep === TutorialStep.ASSISTANT_POINT) nextStep();
-                setIsChatOpen(true);
-              }}
-              onLayout={() => {
-                chatButtonRef.current?.measureInWindow((x, y, width, height) => {
-                  setChatButtonRect({ x, y, width, height });
-                });
-              }}
-            >
-              <Ionicons name="chatbubble-ellipses" size={36} color="white" />
-              <Text style={styles.actionText}>Chat</Text>
-            </TouchableOpacity>
-          </View>
+          {scriptsArray.length > 0 && (
+            <View style={[styles.rightActionPanel, { bottom: bottomTabBarHeight + 200 }]}>
+              <TouchableOpacity 
+                ref={chatButtonRef}
+                style={styles.actionButton} 
+                onPress={() => {
+                  if (currentStep === TutorialStep.ASSISTANT_POINT) nextStep();
+                  setIsChatOpen(true);
+                }}
+                onLayout={() => {
+                  chatButtonRef.current?.measureInWindow((x, y, width, height) => {
+                    setChatButtonRect({ x, y, width, height });
+                  });
+                }}
+              >
+                <Ionicons name="chatbubble-ellipses" size={36} color="white" />
+                <Text style={styles.actionText}>Chat</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </>
       ) : (
         currentSavedScript ? (
@@ -705,7 +729,10 @@ export default function HomeScreen() {
           />
         ) : (
           <View style={styles.placeholderContainer}>
-            <ThemedText style={styles.placeholderText}>Generate or select a reel to see its questions!</ThemedText>
+            <Ionicons name="cloud-upload-outline" size={64} color="#FFF" style={{marginBottom: 16}} />
+            <ThemedText style={[styles.placeholderText, { textAlign: 'center' }]}>
+              {hasSavedReels ? "Select a reel from the Saved tab to see its questions" : "Press + to upload file"}
+            </ThemedText>
           </View>
         )
       )}
