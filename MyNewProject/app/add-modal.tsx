@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Platform, View } from 'react-native';
+import { StyleSheet, TextInput, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Platform, View, KeyboardAvoidingView, Keyboard } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -211,10 +211,15 @@ export default function AddModalScreen() {
   const renderInputForm = () => {
     return (
       <View style={styles.formContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={() => setInputMode('none')}>
-          <Ionicons name="arrow-back" size={24} color="#888" />
-          <ThemedText style={{ color: '#888', marginLeft: 8 }}>Back to modes</ThemedText>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <TouchableOpacity style={styles.backButton} onPress={() => setInputMode('none')}>
+            <Ionicons name="arrow-back" size={24} color="#888" />
+            <ThemedText style={{ color: '#888', marginLeft: 8 }}>Back to modes</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+            <Ionicons name="keypad-outline" size={24} color="#888" />
+          </TouchableOpacity>
+        </View>
 
         {inputMode === 'text' && (
           <View style={styles.inputGroup}>
@@ -310,7 +315,10 @@ export default function AddModalScreen() {
 
   return (
     <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-      <View style={styles.modalSheet}>
+      <KeyboardAvoidingView 
+        style={styles.modalSheet}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         {/* Header */}
         <View style={styles.header}>
           <ThemedText type="title">Create Reel 🎬</ThemedText>
@@ -319,14 +327,18 @@ export default function AddModalScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
           {isGenerating ? (
             renderProgressState()
           ) : (
             inputMode === 'none' ? renderSelectionMenu() : renderInputForm()
           )}
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
 
       <TutorialOverlay
         step={TutorialStep.UPLOAD_EXPLAIN}
@@ -404,7 +416,8 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 20,
+    alignSelf: 'flex-start',
   },
   inputGroup: {
     gap: 12,
