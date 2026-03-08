@@ -21,6 +21,7 @@ export interface SavedScript {
   date: number; // Unix timestamp
   questions?: QuizQuestion[];
   quizStatus?: QuizStatus;
+  audioUris?: Record<number, string>;
 }
 
 const STORAGE_KEY = '@reel_scripts_history';
@@ -30,8 +31,9 @@ const STORAGE_KEY = '@reel_scripts_history';
  * @param script The full text of the generated script
  * @param title A short title to represent the reel
  * @param questions Optional quiz questions generated for this script
+ * @param audioUris Optional object mapping script index to the local MP3 file URI
  */
-export async function saveScriptToHistory(script: string, title: string, questions?: QuizQuestion[]): Promise<SavedScript | null> {
+export async function saveScriptToHistory(script: string, title: string, questions?: QuizQuestion[], audioUris?: Record<number, string>): Promise<SavedScript | null> {
   try {
     const newScript: SavedScript = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -39,6 +41,7 @@ export async function saveScriptToHistory(script: string, title: string, questio
       script: script,
       date: Date.now(),
       questions: questions,
+      audioUris: audioUris,
       quizStatus: questions ? {
         userAnswers: new Array(questions.length).fill(null),
         isSubmitted: false,

@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { askGemini, generateQuizForReel } from '@/utils/gemini';
+import { generateTTS } from '@/utils/elevenlabs';
 import { saveScriptToHistory } from '@/utils/storage';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -137,7 +138,44 @@ export default function AddModalScreen() {
         
         // Fast UI feedback
         setProgressStage(2); // Narrating
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Parse script into topics to generate first 2 audios
+        const splitRegex = /(?=(?:\*\*?)?Topic \d+(?:\*\*?)?:?)/i;
+        const scriptsArray = script
+          .split(splitRegex)
+          .map((s: string) => s.trim())
+          .filter((s: string) => s.length > 0);
+
+        const initialAudioUris: Record<number, string> = {};
+        const scriptsToGenerateAudioFor = scriptsArray.slice(0, 2);
+
+        // Pre-generate the first immediately before returning
+        // to avoid ElevenLabs "Too Many Concurrent Requests" 429 Error on the free tier.
+        /* 
+        for (let index = 0; index < scriptsToGenerateAudioFor.length; index++) {
+            const topicText = scriptsToGenerateAudioFor[index];
+            // Remove any markdown like "**Topic 1:**" to avoid it being read out loud
+            const cleanTextToRead = topicText.replace(/\*\*?Topic \d+\*\*?:?/gi, '').trim();
+            if (cleanTextToRead.length > 0) {
+                const uri = await generateTTS(cleanTextToRead, index);
+                if (uri) {
+                    initialAudioUris[index] = uri;
+                }
+            }
+        }
+        */
+
+        // ONLY GENERATE THE FIRST SCRIPT FOR TESTING (to save credits)
+        if (scriptsToGenerateAudioFor.length > 0) {
+            const topicText = scriptsToGenerateAudioFor[0];
+            const cleanTextToRead = topicText.replace(/\*\*?Topic \d+\*\*?:?/gi, '').trim();
+            if (cleanTextToRead.length > 0) {
+                // Generate for index 0 only
+                const uri = await generateTTS(cleanTextToRead, 0);
+                if (uri) {
+                    initialAudioUris[0] = uri;
+                }
+            }
+        }
         
         setProgressStage(3); // Subtitling
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -155,14 +193,15 @@ export default function AddModalScreen() {
           }
         }
         
-        const savedItem = await saveScriptToHistory(script, finalTitle, questions || undefined);
+        const savedItem = await saveScriptToHistory(script, finalTitle, questions || undefined, initialAudioUris);
 
         // Pass everything back!
         router.replace({
           pathname: '/(tabs)',
           params: { 
             generatedScript: script,
-            scriptId: savedItem?.id 
+            scriptId: savedItem?.id,
+            initialAudio: JSON.stringify(initialAudioUris) // pass it here!
           }
         });
       } else {

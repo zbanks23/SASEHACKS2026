@@ -6,6 +6,8 @@ import { useIsFocused } from '@react-navigation/native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
+// import { generateTTS } from '@/utils/elevenlabs'; // Commented out to save credits
+import { useSound } from '@/context/SoundContext';
 
 import { TopNavBar } from '@/components/TopNavBar';
 import { ChatModal } from '@/components/ChatModal';
@@ -33,14 +35,11 @@ const generateVideoFeed = () => {
   return Array.from({ length: 50 }, (_, i) => getRandomVideo(i));
 };
 
-import { useSound } from '@/context/SoundContext';
-
-const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded }: { source: any; isActive: boolean; isAppFocused: boolean; onVideoLoaded: () => void }) => {
+const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded, isUserPaused, onTogglePause, onForcePause }: { source: any; isActive: boolean; isAppFocused: boolean; onVideoLoaded: () => void; isUserPaused: boolean; onTogglePause: () => void; onForcePause: () => void }) => {
   const videoRef = useRef<Video>(null);
   const [hasJumpedToRandomTime, setHasJumpedToRandomTime] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   // Start the video off as implicitly playing if active, UNLESS forcefully paused
-  const [isUserPaused, setIsUserPaused] = useState(false);
   const { videoVolume, playbackSpeed } = useSound();
 
   // Explicitly set volume and rate when they change or when the video becomes active
@@ -63,10 +62,10 @@ const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded }:
   useEffect(() => {
     if (!isAppFocused && isActive) {
       // If we are leaving this screen entirely (opening chat, changing tabs), forcefully pause it forever
-      setIsUserPaused(true);
+      onForcePause();
       videoRef.current?.pauseAsync().catch(() => { });
     }
-  }, [isAppFocused]);
+  }, [isAppFocused, isActive, onForcePause]);
 
   // Handle active/inactive transitions ONLY for vertical scrolling
   useEffect(() => {
@@ -77,21 +76,10 @@ const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded }:
         videoRef.current?.playAsync().catch(() => { });
       }
     } else {
-      // If we just horizontally scroll away, organically pause it BUT don't overwrite user intent
+      // If we just vertically scroll away, organically pause it BUT don't overwrite user intent
       videoRef.current?.pauseAsync().catch(() => { });
     }
   }, [isActive, isAppFocused, isUserPaused]);
-
-  const togglePlayPause = () => {
-    const nextPausedState = !isUserPaused;
-    setIsUserPaused(nextPausedState);
-    
-    if (nextPausedState) {
-      videoRef.current?.pauseAsync().catch(() => {});
-    } else {
-      videoRef.current?.playAsync().catch(() => {});
-    }
-  };
 
   // When the video finishes loading its metadata, find a random spot to start!
   const handlePlaybackStatusUpdate = async (status: AVPlaybackStatus) => {
@@ -127,7 +115,7 @@ const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded }:
     <TouchableOpacity 
       style={styles.videoContainer} 
       activeOpacity={1} 
-      onPress={togglePlayPause}
+      onPress={onTogglePause}
     >
       <Video
         ref={videoRef}
@@ -164,6 +152,8 @@ const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded }:
     </TouchableOpacity>
   );
 });
+
+VideoItem.displayName = 'VideoItem';
 
 const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScript: (updated: SavedScript) => void }) => {
   const [userAnswers, setUserAnswers] = useState<(number | null)[]>(script.quizStatus?.userAnswers || new Array(script.questions?.length || 0).fill(null));
@@ -379,7 +369,25 @@ export default function HomeScreen() {
     setupAudio();
   }, []);
 
-  const { generatedScript, scriptId } = useLocalSearchParams<{ generatedScript: string, scriptId: string }>();
+  const { generatedScript, initialAudio, scriptId } = useLocalSearchParams<{ generatedScript: string; initialAudio?: string, scriptId: string }>();
+
+  // Parse initial audio URIs from route params
+  const initialAudioUris: Record<number, string> = useMemo(() => {
+    if (initialAudio) {
+      try {
+        return JSON.parse(initialAudio);
+      } catch {
+        console.error("Failed to parse initialAudio from params");
+      }
+    }
+    return {};
+  }, [initialAudio]);
+
+  // Audio state
+  const [audioUris, setAudioUris] = useState<Record<number, string>>(initialAudioUris);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isUserPaused, setIsUserPaused] = useState(false);
+  const { ttsVolume } = useSound();
 
   // Load the full script item if we have an ID
   useEffect(() => {
@@ -440,6 +448,8 @@ export default function HomeScreen() {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: 0, animated: false });
     }
+    // Also reset paused state so the next video plays immediately
+    setIsUserPaused(false);
   }, [activeVideoIndex]);
 
   useEffect(() => {
@@ -447,12 +457,108 @@ export default function HomeScreen() {
     if (activeScriptText) {
       setActiveVideoIndex(0);
       setIsCurrentVideoLoaded(false);
+      
+      // If we loaded a history script that already has downloaded audio, use it!
+      if (currentSavedScript?.audioUris) {
+         setAudioUris(currentSavedScript.audioUris);
+      } else {
+         setAudioUris(initialAudioUris); // Otherwise fallback to router params
+      }
+
       // Give the layout a frame to adjust before snapping the video list to the top
       setTimeout(() => {
         flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
       }, 0);
     }
-  }, [activeScriptText]);
+  }, [activeScriptText, initialAudioUris, currentSavedScript]);
+
+  // Keep track of the currently loaded audio URI so we don't recreate it in a loop
+  const loadedAudioUriRef = useRef<string | null>(null);
+
+  // Handle Play/Pause/Generate of Audio when the active video index changes
+  useEffect(() => {
+    let unmounted = false;
+
+    async function handleAudioPlayback() {
+      // Find the target URI we SHOULD be playing
+      const scriptToRead = scriptsArray[activeVideoIndex];
+      let targetUri = (scriptsArray.length > 0 && scriptToRead) ? audioUris[activeVideoIndex] : undefined;
+
+      // 1. Immediately kill the old audio if the target has changed
+      // (Even if we aren't ready to play the new one yet!)
+      if (loadedAudioUriRef.current !== (targetUri || null) && !!loadedAudioUriRef.current) {
+        console.log(`🔇 [expo-av] Target video index changed. Stopping previous audio.`);
+        if (sound) {
+           await sound.unloadAsync();
+        }
+        loadedAudioUriRef.current = null;
+      }
+
+      // If we aren't fully loaded on the new video slide yet, wait silently!
+      if (!isCurrentVideoLoaded || !scriptToRead || !targetUri) return;
+
+      // 2. Play the new audio if we aren't already!
+      if (!unmounted && loadedAudioUriRef.current !== targetUri) {
+         try {
+             console.log(`🔊 [expo-av] Attempting to play audio from URI: ${targetUri}`);
+             
+             // Ensure audio plays even if iOS physical silent switch is flipped
+             await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: false,
+                shouldDuckAndroid: true,
+             });
+
+             const { sound: newSound } = await Audio.Sound.createAsync(
+               { uri: targetUri },
+               { shouldPlay: !isUserPaused, volume: ttsVolume, isLooping: true }
+             );
+             
+             console.log(`▶️ [expo-av] Audio playback started successfully for index ${activeVideoIndex}!`);
+             loadedAudioUriRef.current = targetUri;
+             setSound(newSound);
+         } catch (e) {
+            console.error("❌ [expo-av] Failed to play TTS audio:", e);
+         }
+      }
+    }
+
+    handleAudioPlayback();
+
+    return () => {
+      unmounted = true;
+      // We DO NOT unload here anymore, because this cleanup runs on every dependency change.
+      // We only unload when we INTENTIONALLY swap the audio URI above.
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeVideoIndex, scriptsArray, isCurrentVideoLoaded, audioUris]);
+
+  // Dedicated unmount cleanup for when the entire HomeScreen unmounts
+  useEffect(() => {
+      return () => {
+          if (sound) {
+              sound.unloadAsync();
+          }
+      }
+  }, [sound]);
+
+  // Handle pausing/playing the TTS audio when the user taps the video
+  useEffect(() => {
+    if (sound) {
+      if (isUserPaused) {
+        sound.pauseAsync().catch(() => {});
+      } else {
+        sound.playAsync().catch(() => {});
+      }
+    }
+  }, [sound, isUserPaused]);
+
+  // Dynamically update the volume of the TTS audio if the user changes it in settings while listening
+  useEffect(() => {
+    if (sound) {
+       sound.setVolumeAsync(ttsVolume).catch(() => {});
+    }
+  }, [sound, ttsVolume]);
 
   return (
     <View style={styles.container}>
@@ -463,11 +569,14 @@ export default function HomeScreen() {
             data={feedVideos}
             renderItem={({ item, index }) => (
               <View key={item.uniqueKey} style={{ height: containerHeight, width: windowWidth }}>
-                <VideoItem
-                  source={item.source}
-                  isActive={index === activeVideoIndex}
+                <VideoItem 
+                  source={item.source} 
+                  isActive={activeVideoIndex === index} 
                   isAppFocused={activeTopTab === 'reels' && !isChatOpen && isTabBarFocused}
-                  onVideoLoaded={() => setIsCurrentVideoLoaded(true)} // Unlock scrolling when ready!
+                  onVideoLoaded={() => setIsCurrentVideoLoaded(true)}
+                  isUserPaused={isUserPaused && activeVideoIndex === index}
+                  onTogglePause={() => setIsUserPaused(!isUserPaused)}
+                  onForcePause={() => setIsUserPaused(true)}
                 />
               </View>
             )}
@@ -488,23 +597,25 @@ export default function HomeScreen() {
             scrollEnabled={isCurrentVideoLoaded} // PERFORMANCE FIX: Only allow scrolling if the current video is rendering!
           />
 
-          {/* Generated Script Overlay! */}
-          {scriptsArray.length > 0 && scriptsArray[activeVideoIndex] && (
-            <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20 }]}>
-              <ScrollView ref={scrollViewRef} style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
-                <ThemedText style={styles.subtitlesText}>{scriptsArray[activeVideoIndex]}</ThemedText>
-              </ScrollView>
-            </View>
-          )}
+          {/* Subtitle Overlay */}
+          <View style={styles.subtitlesWrapper} pointerEvents="box-none">
+            {scriptsArray[activeVideoIndex] ? (
+              <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 70 }]}>
+                <ScrollView ref={scrollViewRef} style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
+                  <ThemedText style={styles.subtitlesText}>{scriptsArray[activeVideoIndex]}</ThemedText>
+                </ScrollView>
+              </View>
+            ) : null}
 
-          {/* Fallback Overlay if no text generated just to show where it goes */}
-          {!activeScriptText && (
-            <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 20, opacity: 0.5 }]}>
-              <ScrollView style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
-                <ThemedText style={styles.subtitlesText}>Tap the + button to generate scripts for your Reel</ThemedText>
-              </ScrollView>
-            </View>
-          )}
+            {/* Fallback Overlay if no text generated just to show where it goes */}
+            {!activeScriptText && (
+              <View style={[styles.subtitlesContainer, { bottom: bottomTabBarHeight + 70, opacity: 0.5 }]}>
+                <ScrollView style={styles.subtitlesScroll} showsVerticalScrollIndicator={false}>
+                  <ThemedText style={styles.subtitlesText}>Tap the + button to generate scripts for your Reel</ThemedText>
+                </ScrollView>
+              </View>
+            )}
+          </View>
 
           {/* Action Buttons Panel */}
           <View style={[styles.rightActionPanel, { bottom: bottomTabBarHeight + 200 }]}>
@@ -567,11 +678,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  subtitlesWrapper: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+  },
   subtitlesContainer: {
     position: 'absolute',
     left: 20,
     right: 20,
-    maxHeight: 250,
+    maxHeight: 150,
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
     borderRadius: 16,
     padding: 16,
