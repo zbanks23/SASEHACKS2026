@@ -18,7 +18,7 @@ const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
 // Available source videos
 const SOURCE_VIDEOS = [
   { id: 'asmr1', source: require('@/assets/videos/asmr1.mp4') },
-  { id: 'parkour2', source: require('@/assets/videos/minecraftparkour2.mp4') }
+  { id: 'parkour2', source: require('@/assets/videos/minecraftparkour2.mp4') },
   { id: 'subwaysurfers2', source: require('@/assets/videos/subwaysurfers2.mp4') }
 ];
 
