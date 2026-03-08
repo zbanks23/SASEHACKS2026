@@ -6,7 +6,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
-// import { generateTTS } from '@/utils/elevenlabs'; // Commented out to save credits
+// Removed generateTTS import from here, TTS generation happens in add-modal.tsx during script creation.
 import { useSound } from '@/context/SoundContext';
 import { useTutorial, TutorialStep } from '@/context/TutorialContext';
 import { TutorialOverlay } from '@/components/TutorialOverlay';

@@ -12,6 +12,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTutorial, TutorialStep } from '@/context/TutorialContext';
 import { TutorialOverlay } from '@/components/TutorialOverlay';
+import { generateTTS } from '@/utils/elevenlabs';
 
 type InputMode = 'none' | 'text' | 'image' | 'pdf';
 
@@ -141,7 +142,18 @@ export default function AddModalScreen() {
 
         // Fast UI feedback
         setProgressStage(2); // Narrating
-        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Break script into topics and generate audio for each
+        const splitRegex = /(?=(?:\*\*?)?Topic \d+(?:\*\*?)?:?)/i;
+        const scriptsArray = script.split(splitRegex).map(s => s.trim()).filter(s => s.length > 0);
+        
+        const audioUris: Record<number, string> = {};
+        for (let i = 0; i < scriptsArray.length; i++) {
+          const uri = await generateTTS(scriptsArray[i], i);
+          if (uri) {
+            audioUris[i] = uri;
+          }
+        }
 
         setProgressStage(3); // Subtitling
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -159,7 +171,12 @@ export default function AddModalScreen() {
           }
         }
 
-        const savedItem = await saveScriptToHistory(script, finalTitle, questions || undefined);
+        const savedItem = await saveScriptToHistory(
+          script, 
+          finalTitle, 
+          questions || undefined, 
+          Object.keys(audioUris).length > 0 ? audioUris : undefined
+        );
 
         // Advance tutorial if we were waiting for an upload
         if (currentStep === TutorialStep.UPLOAD_SPECIFIC_INSTRUCTION) nextStep();
@@ -169,6 +186,7 @@ export default function AddModalScreen() {
           pathname: '/(tabs)',
           params: {
             generatedScript: script,
+            initialAudio: JSON.stringify(audioUris),
             scriptId: savedItem?.id
           }
         });

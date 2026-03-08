@@ -34,6 +34,9 @@ async function withModelFallback<T>(
                     console.warn(`[${modelName}] Rate Limit (429) hit. Retrying in ${delay}ms... (Attempt ${retries + 1}/${maxRetriesPerModel})`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                     retries++;
+                } else if (error?.message?.includes('503') || error?.message?.includes('UNAVAILABLE') || error?.message?.includes('high demand')) {
+                    console.warn(`[${modelName}] High Demand (503). Skipping to next model immediately.`);
+                    break; // Exit the while loop to immediately try the next model in the hierarchy
                 } else {
                     // It's a different error (e.g. 400 Bad Request, 500 Server Error)
                     // Trying a new model won't fix a bad prompt, so just throw
