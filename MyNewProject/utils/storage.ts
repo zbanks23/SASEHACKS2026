@@ -76,6 +76,24 @@ export async function updateQuizStatus(id: string, status: QuizStatus): Promise<
 }
 
 /**
+ * Updates the title of a specific script.
+ */
+export async function updateScriptTitle(id: string, newTitle: string): Promise<boolean> {
+  try {
+    const history = await getScriptHistory();
+    const index = history.findIndex(item => item.id === id);
+    if (index === -1) return false;
+
+    history[index].title = newTitle;
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    return true;
+  } catch (error) {
+    console.error('Error updating script title:', error);
+    return false;
+  }
+}
+
+/**
  * Retrieves a single script by its ID.
  */
 export async function getScriptById(id: string): Promise<SavedScript | null> {

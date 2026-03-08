@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getScriptHistory, deleteScriptFromHistory, SavedScript } from '@/utils/storage';
+import { getScriptHistory, deleteScriptFromHistory, updateScriptTitle, SavedScript } from '@/utils/storage';
 import { Swipeable } from 'react-native-gesture-handler';
 
 export default function SavedScreen() {
@@ -41,6 +41,32 @@ export default function SavedScreen() {
     );
   };
 
+  const handleEditName = (id: string, currentTitle: string) => {
+    Alert.prompt(
+      "Edit Reel Name",
+      "Enter a new name for this saved reel:",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Save", 
+          onPress: async (newTitle?: string) => {
+            if (newTitle && newTitle.trim() !== "") {
+              const success = await updateScriptTitle(id, newTitle.trim());
+              if (success) {
+                // Update local state to reflect UI change immediately
+                setHistory(prev => prev.map(item => 
+                  item.id === id ? { ...item, title: newTitle.trim() } : item
+                ));
+              }
+            }
+          }
+        }
+      ],
+      "plain-text",
+      currentTitle
+    );
+  };
+
   const handlePlayScript = (item: any) => {
     router.replace({
       pathname: '/(tabs)',
@@ -53,12 +79,20 @@ export default function SavedScreen() {
 
   const renderRightActions = (item: SavedScript) => {
     return (
-      <TouchableOpacity 
-        style={styles.deleteAction} 
-        onPress={() => handleDelete(item.id, item.title)}
-      >
-        <Ionicons name="trash-outline" size={28} color="#FFF" />
-      </TouchableOpacity>
+      <View style={{ flexDirection: 'row' }}>
+        <TouchableOpacity 
+          style={styles.editAction} 
+          onPress={() => handleEditName(item.id, item.title)}
+        >
+          <Ionicons name="pencil-outline" size={28} color="#FFF" />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.deleteAction} 
+          onPress={() => handleDelete(item.id, item.title)}
+        >
+          <Ionicons name="trash-outline" size={28} color="#FFF" />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -178,6 +212,15 @@ const styles = StyleSheet.create({
     color: '#AAA',
     fontSize: 14,
     lineHeight: 20,
+  },
+  editAction: {
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderRadius: 12,
+    marginBottom: 12,
+    marginRight: 8,
   },
   deleteAction: {
     backgroundColor: '#FF3B30',

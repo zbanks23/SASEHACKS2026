@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { StyleSheet, View, FlatList, Dimensions, ViewToken, ScrollView, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus, Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useIsFocused } from '@react-navigation/native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
@@ -34,10 +35,11 @@ const generateVideoFeed = () => {
 
 import { useSound } from '@/context/SoundContext';
 
-const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any; isActive: boolean; onVideoLoaded: () => void }) => {
+const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded }: { source: any; isActive: boolean; isAppFocused: boolean; onVideoLoaded: () => void }) => {
   const videoRef = useRef<Video>(null);
   const [hasJumpedToRandomTime, setHasJumpedToRandomTime] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  // Start the video off as implicitly playing if active, UNLESS forcefully paused
   const [isUserPaused, setIsUserPaused] = useState(false);
   const { videoVolume, playbackSpeed } = useSound();
 
@@ -57,14 +59,28 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
     }
   }, [isActive, isLoaded, onVideoLoaded]);
 
+  // Handle visibility transitions specifically for the app backgrounding / chat opening
   useEffect(() => {
-    if (isActive) {
-      setIsUserPaused(false); // Reset pause state when this video becomes active
-      videoRef.current?.playAsync().catch(() => { });
-    } else {
+    if (!isAppFocused && isActive) {
+      // If we are leaving this screen entirely (opening chat, changing tabs), forcefully pause it forever
+      setIsUserPaused(true);
       videoRef.current?.pauseAsync().catch(() => { });
     }
-  }, [isActive]);
+  }, [isAppFocused]);
+
+  // Handle active/inactive transitions ONLY for vertical scrolling
+  useEffect(() => {
+    if (isActive) {
+      // If returning to the active video via scroll OR after a forced pause, check the user state.
+      // If they didn't manually pause it, auto-play!
+      if (!isUserPaused && isAppFocused) {
+        videoRef.current?.playAsync().catch(() => { });
+      }
+    } else {
+      // If we just horizontally scroll away, organically pause it BUT don't overwrite user intent
+      videoRef.current?.pauseAsync().catch(() => { });
+    }
+  }, [isActive, isAppFocused, isUserPaused]);
 
   const togglePlayPause = () => {
     const nextPausedState = !isUserPaused;
@@ -120,7 +136,7 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
         useNativeControls={false}
         resizeMode={ResizeMode.COVER}
         isLooping
-        shouldPlay={isActive && !isUserPaused}
+        shouldPlay={isActive && isAppFocused && !isUserPaused}
         rate={playbackSpeed}
         shouldCorrectPitch={true}
         volume={videoVolume}
@@ -342,6 +358,7 @@ export default function HomeScreen() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [currentSavedScript, setCurrentSavedScript] = useState<SavedScript | null>(null);
   const bottomTabBarHeight = useBottomTabBarHeight(); // Required so videos are positioned correctly with absolute tab bar
+  const isTabBarFocused = useIsFocused(); // Track if the user navigated away from the home screen entirely
 
   // GLOBAL AUDIO SETUP
   useEffect(() => {
@@ -449,6 +466,7 @@ export default function HomeScreen() {
                 <VideoItem
                   source={item.source}
                   isActive={index === activeVideoIndex}
+                  isAppFocused={activeTopTab === 'reels' && !isChatOpen && isTabBarFocused}
                   onVideoLoaded={() => setIsCurrentVideoLoaded(true)} // Unlock scrolling when ready!
                 />
               </View>

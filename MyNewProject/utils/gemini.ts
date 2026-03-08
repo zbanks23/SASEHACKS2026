@@ -4,22 +4,49 @@ const ai = new GoogleGenAI({
     apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY
 })
 
-async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 1000): Promise<T | null> {
-    let retries = 0;
-    while (retries < maxRetries) {
-        try {
-            return await fn();
-        } catch (error: any) {
-            if (error?.message?.includes('429') && retries < maxRetries - 1) {
-                const delay = initialDelay * Math.pow(2, retries);
-                console.warn(`Gemini Rate Limit (429) hit. Retrying in ${delay}ms... (Attempt ${retries + 1}/${maxRetries})`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                retries++;
-            } else {
-                throw error;
+const MODEL_FALLBACK_HIERARCHY = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-2.5-pro-tts",
+    "gemini-3-flash",
+    "gemini-3-pro",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-pro"
+];
+
+// Reusable function to try multiple models sequentially on 429 quota errors
+async function withModelFallback<T>(
+    generateFn: (modelName: string) => Promise<T>,
+    maxRetriesPerModel = 2,
+    initialDelay = 1000
+): Promise<T | null> {
+    for (const modelName of MODEL_FALLBACK_HIERARCHY) {
+        let retries = 0;
+        
+        while (retries < maxRetriesPerModel) {
+            try {
+                return await generateFn(modelName);
+            } catch (error: any) {
+                // If 429 error, sleep briefly and retry the SAME model (up to maxRetriesPerModel)
+                if (error?.message?.includes('429')) {
+                    const delay = initialDelay * Math.pow(2, retries);
+                    console.warn(`[${modelName}] Rate Limit (429) hit. Retrying in ${delay}ms... (Attempt ${retries + 1}/${maxRetriesPerModel})`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    retries++;
+                } else {
+                    // It's a different error (e.g. 400 Bad Request, 500 Server Error)
+                    // Trying a new model won't fix a bad prompt, so just throw
+                    throw error;
+                }
             }
         }
+        
+        // If we broke out of the while loop, it means we exhausted retries on THIS model due to 429s.
+        console.warn(`[${modelName}] Exhausted all retries. Falling back to next model...`);
     }
+    
+    console.error("All fallback models exhausted. Cannot fulfill request.");
     return null;
 }
 
@@ -45,9 +72,9 @@ export async function askGemini(prompt: string, base64Image?: string, imageMimeT
             });
         }
 
-        return withRetry(async () => {
+        return withModelFallback(async (modelName) => {
             const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
+                model: modelName,
                 contents: contents,
                 config: {
                     systemInstruction: `You are an expert scriptwriter for educational TikToks, Instagram Reels, and YouTube Shorts. Your job is to take the provided transcript, notes, or image and create multiple fast-paced, engaging, and highly informative 60-second video scripts based on each topic discussed in the notes or transcript. The scripts should start with a strong hook, strong explanation of the topic, and end with asking a question 'Now it's your turn: {question}' about the topic to make the viewer think about what they just learned/watched.
@@ -59,6 +86,7 @@ export async function askGemini(prompt: string, base64Image?: string, imageMimeT
                     4. For the ENTIRE set of topics, generate exactly 5 high-quality quiz-style multiple choice questions for the user to test their knowledge.
                     5. RETURN THE RESULT ONLY AS A VALID JSON OBJECT with the following structure:
                     {
+                        "title": "A short, engaging 3-5 word summary of the overall topic discussed.",
                         "script": "The full combined text of all topic scripts, separated by double newlines. Make sure to include the 'Topic 1:' headers in this text.",
                         "questions": [
                             {
@@ -80,7 +108,7 @@ export async function askGemini(prompt: string, base64Image?: string, imageMimeT
                 return null;
             }
             try {
-                return JSON.parse(text) as { script: string, questions: any[] };
+                return JSON.parse(text) as { title: string, script: string, questions: any[] };
             } catch (e) {
                 console.error("JSON Parse Error in Gemini response:", e, text);
                 return null;
@@ -99,9 +127,11 @@ export async function chatAboutReel(topicContext: string, userMessage: string, c
             { role: "user", parts: [{ text: userMessage }] }
         ];
 
-        return withRetry(async () => {
+        // Note: For chat, we might want to stay on flash-8b if possible because it's fast,
+        // but it's not in the fallback list. Let's let it fallback normally to guarantee delivery.
+        return withModelFallback(async (modelName) => {
             const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash", 
+                model: modelName, 
                 contents: contents,
                 config: {
                     systemInstruction: `You are a helpful and engaging tutor on TikTok/Reels. The user is currently watching a short educational video about the following topic script:\n\n"${topicContext}"\n\nYour job is to answer the user's questions specifically related to this topic context. Keep your answers concise, friendly, and easy to read on a mobile screen. Do not use complex formatting.`,
@@ -117,9 +147,9 @@ export async function chatAboutReel(topicContext: string, userMessage: string, c
 
 export async function generateQuizForReel(script: string) {
     try {
-        return withRetry(async () => {
+        return withModelFallback(async (modelName) => {
             const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash", 
+                model: modelName, 
                 contents: [{ text: `Based on the following educational reel script, generate exactly 5 high-quality quiz-style multiple choice questions.
                 For each question:
                 1. Provide a clear question.

@@ -130,10 +130,10 @@ export default function AddModalScreen() {
     setProgressStage(1); // Scripting
 
     try {
-      const result = await askGemini(prompt, base64Image || undefined, mimeType || undefined, base64Document || undefined, documentMimeType || undefined) as { script: string, questions: any[] } | null;
+      const result = await askGemini(prompt, base64Image || undefined, mimeType || undefined, base64Document || undefined, documentMimeType || undefined) as { title?: string, script: string, questions: any[] } | null;
       
       if (result && result.script) {
-        const { script, questions } = result;
+        const { title: geminiTitle, script, questions } = result;
         
         // Fast UI feedback
         setProgressStage(2); // Narrating
@@ -146,14 +146,16 @@ export default function AddModalScreen() {
         // Stage 4 is already finished because it was consolidated!
         await new Promise(resolve => setTimeout(resolve, 200));
 
-        let title = "Generated Reel";
-        if (inputMode === 'pdf' && documentName) {
-            title = documentName;
-        } else if (inputMode === 'text' && prompt) {
-            title = prompt.substring(0, 30) + "...";
+        let finalTitle = geminiTitle || "Generated Reel";
+        if (!geminiTitle) {
+          if (inputMode === 'pdf' && documentName) {
+              finalTitle = documentName;
+          } else if (inputMode === 'text' && prompt) {
+              finalTitle = prompt.substring(0, 30) + "...";
+          }
         }
         
-        const savedItem = await saveScriptToHistory(script, title, questions || undefined);
+        const savedItem = await saveScriptToHistory(script, finalTitle, questions || undefined);
 
         // Pass everything back!
         router.replace({
