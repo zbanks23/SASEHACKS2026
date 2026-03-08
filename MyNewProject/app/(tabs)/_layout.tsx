@@ -51,7 +51,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Upload/Scroll',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.app.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => <IconSymbol size={28} name={focused ? "plus.app.fill" : "house.fill"} color={color} />,
         }}
         listeners={() => ({
           tabPress: (e) => {
