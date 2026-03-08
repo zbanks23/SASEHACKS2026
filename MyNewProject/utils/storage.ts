@@ -1,11 +1,26 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation: string;
+}
+
+export interface QuizStatus {
+  userAnswers: (number | null)[];
+  isSubmitted: boolean;
+  score: number;
+}
+
 // Define the shape of our saved script object
 export interface SavedScript {
   id: string;
   title: string;
   script: string;
   date: number; // Unix timestamp
+  questions?: QuizQuestion[];
+  quizStatus?: QuizStatus;
 }
 
 const STORAGE_KEY = '@reel_scripts_history';
@@ -14,14 +29,21 @@ const STORAGE_KEY = '@reel_scripts_history';
  * Saves a newly generated script to AsyncStorage.
  * @param script The full text of the generated script
  * @param title A short title to represent the reel
+ * @param questions Optional quiz questions generated for this script
  */
-export async function saveScriptToHistory(script: string, title: string): Promise<SavedScript | null> {
+export async function saveScriptToHistory(script: string, title: string, questions?: QuizQuestion[]): Promise<SavedScript | null> {
   try {
     const newScript: SavedScript = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       title: title || 'Untitled Reel',
       script: script,
       date: Date.now(),
+      questions: questions,
+      quizStatus: questions ? {
+        userAnswers: new Array(questions.length).fill(null),
+        isSubmitted: false,
+        score: 0
+      } : undefined
     };
 
     const existingHistory = await getScriptHistory();
@@ -33,6 +55,32 @@ export async function saveScriptToHistory(script: string, title: string): Promis
     console.error('Error saving script to history:', error);
     return null;
   }
+}
+
+/**
+ * Updates the quiz status for a specific script.
+ */
+export async function updateQuizStatus(id: string, status: QuizStatus): Promise<boolean> {
+  try {
+    const history = await getScriptHistory();
+    const index = history.findIndex(item => item.id === id);
+    if (index === -1) return false;
+
+    history[index].quizStatus = status;
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    return true;
+  } catch (error) {
+    console.error('Error updating quiz status:', error);
+    return false;
+  }
+}
+
+/**
+ * Retrieves a single script by its ID.
+ */
+export async function getScriptById(id: string): Promise<SavedScript | null> {
+  const history = await getScriptHistory();
+  return history.find(item => item.id === id) || null;
 }
 
 /**

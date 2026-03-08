@@ -6,7 +6,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { askGemini } from '@/utils/gemini';
+import { askGemini, generateQuizForReel } from '@/utils/gemini';
 import { saveScriptToHistory } from '@/utils/storage';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -130,16 +130,22 @@ export default function AddModalScreen() {
     setProgressStage(1); // Scripting
 
     try {
-      const result = await askGemini(prompt, base64Image || undefined, mimeType || undefined, base64Document || undefined, documentMimeType || undefined);
+      const result = await askGemini(prompt, base64Image || undefined, mimeType || undefined, base64Document || undefined, documentMimeType || undefined) as { script: string, questions: any[] } | null;
       
-      if (result) {
-        // Fake timeline for TTS/Subtitle generation feel for the hackathon UI
+      if (result && result.script) {
+        const { script, questions } = result;
+        
+        // Fast UI feedback
         setProgressStage(2); // Narrating
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         setProgressStage(3); // Subtitling
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 500));
         
+        setProgressStage(4); // Generating Quiz
+        // Stage 4 is already finished because it was consolidated!
+        await new Promise(resolve => setTimeout(resolve, 200));
+
         let title = "Generated Reel";
         if (inputMode === 'pdf' && documentName) {
             title = documentName;
@@ -147,12 +153,15 @@ export default function AddModalScreen() {
             title = prompt.substring(0, 30) + "...";
         }
         
-        await saveScriptToHistory(result, title);
+        const savedItem = await saveScriptToHistory(script, title, questions || undefined);
 
-        // Pass the result back to the Home Feed tab!
+        // Pass everything back!
         router.replace({
           pathname: '/(tabs)',
-          params: { generatedScript: result }
+          params: { 
+            generatedScript: script,
+            scriptId: savedItem?.id 
+          }
         });
       } else {
         Alert.alert("Failed to generate script. Please try again.");
@@ -278,6 +287,7 @@ export default function AddModalScreen() {
     if (progressStage === 1) message = "Writing Educational Script...";
     if (progressStage === 2) message = "Synthesizing AI Voice...";
     if (progressStage === 3) message = "Aligning On-Screen Subtitles...";
+    if (progressStage === 4) message = "Generating Smart Quiz...";
 
     return (
       <View style={styles.progressContainer}>
@@ -286,7 +296,7 @@ export default function AddModalScreen() {
         
         {/* Simple Progress Bar Visual */}
         <View style={styles.progressBarBackground}>
-          <View style={[styles.progressBarFill, { width: `${(progressStage / 3) * 100}%` }]} />
+          <View style={[styles.progressBarFill, { width: `${(progressStage / 4) * 100}%` }]} />
         </View>
       </View>
     );

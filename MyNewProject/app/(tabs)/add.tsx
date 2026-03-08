@@ -41,10 +41,13 @@ export default function SavedScreen() {
     );
   };
 
-  const handlePlayScript = (scriptText: string) => {
+  const handlePlayScript = (item: any) => {
     router.replace({
       pathname: '/(tabs)',
-      params: { generatedScript: scriptText }
+      params: { 
+        generatedScript: item.script,
+        scriptId: item.id
+      }
     });
   };
 
@@ -80,7 +83,7 @@ export default function SavedScreen() {
             <Swipeable renderRightActions={() => renderRightActions(item)}>
               <TouchableOpacity 
                 style={styles.card} 
-                onPress={() => handlePlayScript(item.script)}
+                onPress={() => handlePlayScript(item)}
                 activeOpacity={0.8}
               >
                 <View style={styles.cardHeader}>
