@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
   },
   quizContainer: {
     padding: 20,
-    paddingTop: 80,
+    paddingTop: 140,
   },
   quizTitle: {
     fontSize: 28,
