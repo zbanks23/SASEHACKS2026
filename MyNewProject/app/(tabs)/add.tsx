@@ -2,12 +2,14 @@ import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { getScriptHistory, deleteScriptFromHistory, updateScriptTitle, SavedScript } from '@/utils/storage';
 import { Swipeable } from 'react-native-gesture-handler';
 
 export default function SavedScreen() {
   const router = useRouter();
   const [history, setHistory] = useState<SavedScript[]>([]);
+  const bottomTabBarHeight = useBottomTabBarHeight();
 
   // Refresh history every time the user navigates to the Saved tab
   useFocusEffect(
@@ -112,7 +114,7 @@ export default function SavedScreen() {
         <FlatList
           data={history}
           keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: bottomTabBarHeight + 16 }]}
           renderItem={({ item }) => (
             <Swipeable renderRightActions={() => renderRightActions(item)}>
               <TouchableOpacity 
