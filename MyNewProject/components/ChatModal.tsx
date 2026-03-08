@@ -97,14 +97,17 @@ export function ChatModal({ isVisible, onClose, topicContext }: ChatModalProps) 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.modalContainer}
       >
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
+        {/* Transparent background to dismiss modal */}
+        <TouchableOpacity 
+          style={styles.backdrop} 
+          activeOpacity={1} 
+          onPress={onClose} 
+        />
         
         <View style={styles.contentContainer}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Tutor Chat</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
               <Ionicons name="close" size={24} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -115,6 +118,7 @@ export function ChatModal({ isVisible, onClose, topicContext }: ChatModalProps) 
             keyExtractor={item => item.id}
             contentContainerStyle={styles.messagesList}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <View style={[
                 styles.messageBubble, 
@@ -136,14 +140,14 @@ export function ChatModal({ isVisible, onClose, topicContext }: ChatModalProps) 
               maxLength={200}
             />
             <TouchableOpacity 
-              style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]} 
+              style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]} 
               onPress={handleSend}
               disabled={!inputText.trim() || isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color="#FFF" size="small" />
               ) : (
-                <Ionicons name="send" size={20} color="#FFF" />
+                <Ionicons name="send" size={20} color="#FFF" style={{ marginLeft: 4 }} />
               )}
             </TouchableOpacity>
           </View>
