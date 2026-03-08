@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { StyleSheet, View, FlatList, Dimensions, ViewToken, ScrollView, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { Video, ResizeMode, AVPlaybackStatus, Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,7 +39,15 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
   const [hasJumpedToRandomTime, setHasJumpedToRandomTime] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isUserPaused, setIsUserPaused] = useState(false);
-  const { videoVolume } = useSound();
+  const { videoVolume, playbackSpeed } = useSound();
+
+  // Explicitly set volume and rate when they change or when the video becomes active
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.setVolumeAsync(videoVolume).catch(() => {});
+      videoRef.current.setRateAsync(playbackSpeed, true).catch(() => {});
+    }
+  }, [videoVolume, playbackSpeed, isActive, isLoaded]);
 
   // Safely tell the parent list we are ready to be scrolled from,
   // whenever we are both active and loaded!
@@ -113,7 +121,10 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
         resizeMode={ResizeMode.COVER}
         isLooping
         shouldPlay={isActive && !isUserPaused}
+        rate={playbackSpeed}
+        shouldCorrectPitch={true}
         volume={videoVolume}
+        isMuted={false}
         onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
         progressUpdateIntervalMillis={1000} // PERFORMANCE: Reduce update frequency
         posterSource={require('@/assets/images/partial-react-logo.png')} // Show something while loading
@@ -123,7 +134,9 @@ const VideoItem = React.memo(({ source, isActive, onVideoLoaded }: { source: any
       {/* Pause Icon Overlay */}
       {isUserPaused && (
         <View style={styles.pauseOverlay}>
-          <Ionicons name="play" size={80} color="rgba(255,255,255,0.7)" />
+          <View style={styles.playIconButton}>
+            <Ionicons name="play" size={40} color="white" style={{ marginLeft: 4 }} />
+          </View>
         </View>
       )}
 
@@ -329,6 +342,25 @@ export default function HomeScreen() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [currentSavedScript, setCurrentSavedScript] = useState<SavedScript | null>(null);
   const bottomTabBarHeight = useBottomTabBarHeight(); // Required so videos are positioned correctly with absolute tab bar
+
+  // GLOBAL AUDIO SETUP
+  useEffect(() => {
+    const setupAudio = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
+          staysActiveInBackground: false,
+          interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+          interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch (e) {
+        console.warn("Audio mode setup failed", e);
+      }
+    };
+    setupAudio();
+  }, []);
 
   const { generatedScript, scriptId } = useLocalSearchParams<{ generatedScript: string, scriptId: string }>();
 
@@ -693,5 +725,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  playIconButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
   }
 });

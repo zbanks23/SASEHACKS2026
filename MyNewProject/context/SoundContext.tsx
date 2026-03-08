@@ -6,16 +6,20 @@ interface SoundContextType {
   setVideoVolume: (vol: number) => void;
   ttsVolume: number;
   setTtsVolume: (vol: number) => void;
+  playbackSpeed: number;
+  setPlaybackSpeed: (speed: number) => void;
 }
 
 const SoundContext = createContext<SoundContextType | undefined>(undefined);
 
 const STORAGE_KEY_VIDEO = '@settings_video_volume';
 const STORAGE_KEY_TTS = '@settings_tts_volume';
+const STORAGE_KEY_SPEED = '@settings_playback_speed';
 
 export function SoundProvider({ children }: { children: React.ReactNode }) {
   const [videoVolume, setVideoVolumeState] = useState(0.5);
   const [ttsVolume, setTtsVolumeState] = useState(0.8);
+  const [playbackSpeed, setPlaybackSpeedState] = useState(1.0);
 
   // Load saved settings on startup
   useEffect(() => {
@@ -26,8 +30,11 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
 
         const savedTTSVol = await AsyncStorage.getItem(STORAGE_KEY_TTS);
         if (savedTTSVol !== null) setTtsVolumeState(parseFloat(savedTTSVol));
+
+        const savedSpeed = await AsyncStorage.getItem(STORAGE_KEY_SPEED);
+        if (savedSpeed !== null) setPlaybackSpeedState(parseFloat(savedSpeed));
       } catch (e) {
-        console.error('Failed to load sound settings', e);
+        console.error('Failed to load settings', e);
       }
     };
     loadSettings();
@@ -43,8 +50,17 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY_TTS, vol.toString()).catch(() => {});
   };
 
+  const setPlaybackSpeed = (speed: number) => {
+    setPlaybackSpeedState(speed);
+    AsyncStorage.setItem(STORAGE_KEY_SPEED, speed.toString()).catch(() => {});
+  };
+
   return (
-    <SoundContext.Provider value={{ videoVolume, setVideoVolume, ttsVolume, setTtsVolume }}>
+    <SoundContext.Provider value={{ 
+      videoVolume, setVideoVolume, 
+      ttsVolume, setTtsVolume,
+      playbackSpeed, setPlaybackSpeed 
+    }}>
       {children}
     </SoundContext.Provider>
   );

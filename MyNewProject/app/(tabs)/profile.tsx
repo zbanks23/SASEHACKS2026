@@ -5,12 +5,16 @@ import Slider from '@react-native-community/slider';
 import { useSound } from '@/context/SoundContext';
 
 export default function SoundSettingsScreen() {
-  const { videoVolume, setVideoVolume, ttsVolume, setTtsVolume } = useSound();
+  const { 
+    videoVolume, setVideoVolume, 
+    ttsVolume, setTtsVolume,
+    playbackSpeed, setPlaybackSpeed 
+  } = useSound();
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Sound Settings</Text>
+        <Text style={styles.headerTitle}>Sound & Speed</Text>
       </View>
 
       <View style={styles.content}>
@@ -31,6 +35,26 @@ export default function SoundSettingsScreen() {
             thumbTintColor="#FFF"
           />
           <Text style={styles.helperText}>Adjust the background audio of the video clips.</Text>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.labelContainer}>
+            <Ionicons name="speedometer-outline" size={24} color="#FFF" />
+            <Text style={styles.sectionTitle}>Playback Speed</Text>
+            <Text style={styles.percentage}>{playbackSpeed.toFixed(2)}x</Text>
+          </View>
+          <Slider
+            style={styles.slider}
+            minimumValue={0.5}
+            maximumValue={2.0}
+            step={0.25}
+            value={playbackSpeed}
+            onValueChange={setPlaybackSpeed}
+            minimumTrackTintColor="#34C759"
+            maximumTrackTintColor="#333"
+            thumbTintColor="#FFF"
+          />
+          <Text style={styles.helperText}>Change the default playback speed for all reels.</Text>
         </View>
 
         <View style={styles.section}>
