@@ -1,15 +1,19 @@
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Dimensions } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { getScriptHistory, deleteScriptFromHistory, updateScriptTitle, SavedScript } from '@/utils/storage';
 import { Swipeable } from 'react-native-gesture-handler';
+import { useTutorial, TutorialStep } from '@/context/TutorialContext';
+import { TutorialOverlay } from '@/components/TutorialOverlay';
+
+const { width, height } = Dimensions.get('window');
 
 export default function SavedScreen() {
   const router = useRouter();
   const [history, setHistory] = useState<SavedScript[]>([]);
-  const bottomTabBarHeight = useBottomTabBarHeight();
+  const { currentStep, nextStep } = useTutorial();
 
   // Refresh history every time the user navigates to the Saved tab
   useFocusEffect(
@@ -29,13 +33,19 @@ export default function SavedScreen() {
       `Are you sure you want to delete "${title}"?`,
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
+        {
+          text: "Delete",
           style: "destructive",
           onPress: async () => {
             const success = await deleteScriptFromHistory(id);
             if (success) {
               setHistory(prev => prev.filter(item => item.id !== id));
+              if (currentStep === TutorialStep.DELETE_BUTTON_POINT) {
+                nextStep();
+                router.push({ pathname: '/(tabs)', params: { tab: 'reels' } });
+              } else if (currentStep === TutorialStep.DELETE_INDICATOR) {
+                nextStep();
+              }
             }
           }
         }
@@ -49,14 +59,14 @@ export default function SavedScreen() {
       "Enter a new name for this saved reel:",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Save", 
+        {
+          text: "Save",
           onPress: async (newTitle?: string) => {
             if (newTitle && newTitle.trim() !== "") {
               const success = await updateScriptTitle(id, newTitle.trim());
               if (success) {
                 // Update local state to reflect UI change immediately
-                setHistory(prev => prev.map(item => 
+                setHistory(prev => prev.map(item =>
                   item.id === id ? { ...item, title: newTitle.trim() } : item
                 ));
               }
@@ -72,7 +82,7 @@ export default function SavedScreen() {
   const handlePlayScript = (item: any) => {
     router.replace({
       pathname: '/(tabs)',
-      params: { 
+      params: {
         generatedScript: item.script,
         scriptId: item.id
       }
@@ -82,14 +92,14 @@ export default function SavedScreen() {
   const renderRightActions = (item: SavedScript) => {
     return (
       <View style={{ flexDirection: 'row' }}>
-        <TouchableOpacity 
-          style={styles.editAction} 
+        <TouchableOpacity
+          style={styles.editAction}
           onPress={() => handleEditName(item.id, item.title)}
         >
           <Ionicons name="pencil-outline" size={28} color="#FFF" />
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.deleteAction} 
+        <TouchableOpacity
+          style={styles.deleteAction}
           onPress={() => handleDelete(item.id, item.title)}
         >
           <Ionicons name="trash-outline" size={28} color="#FFF" />
@@ -106,9 +116,9 @@ export default function SavedScreen() {
 
       {history.length === 0 ? (
         <View style={styles.emptyContainer}>
-           <Ionicons name="bookmark-outline" size={64} color="#333" />
-           <Text style={styles.emptyText}>No saved reels yet.</Text>
-           <Text style={styles.emptySubtext}>Generated scripts will automatically appear here!</Text>
+          <Ionicons name="bookmark-outline" size={64} color="#333" />
+          <Text style={styles.emptyText}>No saved reels yet.</Text>
+          <Text style={styles.emptySubtext}>Generated scripts will automatically appear here!</Text>
         </View>
       ) : (
         <FlatList
@@ -116,9 +126,14 @@ export default function SavedScreen() {
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.listContent, { paddingBottom: bottomTabBarHeight + 16 }]}
           renderItem={({ item }) => (
-            <Swipeable renderRightActions={() => renderRightActions(item)}>
-              <TouchableOpacity 
-                style={styles.card} 
+            <Swipeable
+              renderRightActions={() => renderRightActions(item)}
+              onSwipeableOpen={() => {
+                if (currentStep === TutorialStep.DELETE_INDICATOR) nextStep();
+              }}
+            >
+              <TouchableOpacity
+                style={styles.card}
                 onPress={() => handlePlayScript(item)}
                 activeOpacity={0.8}
               >
@@ -127,7 +142,7 @@ export default function SavedScreen() {
                   <View style={styles.cardTitleContainer}>
                     <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
                     <Text style={styles.cardDate}>
-                      {new Date(item.date).toLocaleDateString()} at {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
+                      {new Date(item.date).toLocaleDateString()} at {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </View>
                 </View>
@@ -139,6 +154,24 @@ export default function SavedScreen() {
           )}
         />
       )}
+
+      <TutorialOverlay
+        step={TutorialStep.SAVED_VIEW_EXPLAIN}
+        message="You can see past content here"
+      />
+
+      <TutorialOverlay
+        step={TutorialStep.DELETE_INDICATOR}
+        message="Slide left to edit slides or delete old material"
+        arrowDirection="left"
+      />
+
+      <TutorialOverlay
+        step={TutorialStep.DELETE_BUTTON_POINT}
+        message="delete the current prompt"
+        targetRect={{ x: width - 80, y: 150, width: 80, height: 80 }} // Positioned over the right actions area
+        arrowDirection="right"
+      />
     </View>
   );
 }

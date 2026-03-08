@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { chatAboutReel } from '@/utils/gemini';
+import { useTutorial, TutorialStep } from '@/context/TutorialContext';
+import { TutorialOverlay } from '@/components/TutorialOverlay';
 
 interface Message {
   id: string;
@@ -33,6 +35,11 @@ export function ChatModal({ isVisible, onClose, topicContext }: ChatModalProps) 
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const { currentStep, nextStep } = useTutorial();
+
+  // Tutorial measurement
+  const closeButtonRef = useRef<View>(null);
+  const [closeButtonRect, setCloseButtonRect] = useState<any>(null);
 
   // When modal becomes visible or topic changes, we could optionally reset chat
   useEffect(() => {
@@ -107,7 +114,19 @@ export function ChatModal({ isVisible, onClose, topicContext }: ChatModalProps) 
         <View style={styles.contentContainer}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Tutor Chat</Text>
-            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+            <TouchableOpacity 
+              ref={closeButtonRef}
+              onPress={() => {
+                if (currentStep === TutorialStep.ASSISTANT_OPEN) nextStep();
+                onClose();
+              }} 
+              style={{ padding: 4 }}
+              onLayout={() => {
+                closeButtonRef.current?.measureInWindow((x, y, width, height) => {
+                  setCloseButtonRect({ x, y, width, height });
+                });
+              }}
+            >
               <Ionicons name="close" size={24} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -152,6 +171,14 @@ export function ChatModal({ isVisible, onClose, topicContext }: ChatModalProps) 
             </TouchableOpacity>
           </View>
         </View>
+
+        <TutorialOverlay
+          step={TutorialStep.ASSISTANT_OPEN}
+          message="Here you can ask questions about anything."
+          subMessage="Click the X to close the menu"
+          targetRect={closeButtonRect}
+          arrowDirection="down"
+        />
       </KeyboardAvoidingView>
     </Modal>
   );

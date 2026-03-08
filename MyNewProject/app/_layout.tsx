@@ -11,6 +11,7 @@ export const unstable_settings = {
 };
 
 import { SoundProvider } from '@/context/SoundContext';
+import { TutorialProvider } from '@/context/TutorialContext';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -27,14 +28,16 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SoundProvider>
-        <ThemeProvider value={customTheme}>
-          <Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, animation: 'fade' }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="add-modal" options={{ presentation: 'transparentModal', headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
+        <TutorialProvider>
+          <ThemeProvider value={customTheme}>
+            <Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, animation: 'fade' }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="add-modal" options={{ presentation: 'transparentModal', headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </TutorialProvider>
       </SoundProvider>
     </GestureHandlerRootView>
   );

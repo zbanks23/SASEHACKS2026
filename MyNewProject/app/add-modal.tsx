@@ -10,11 +10,14 @@ import { askGemini, generateQuizForReel } from '@/utils/gemini';
 import { saveScriptToHistory } from '@/utils/storage';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { useTutorial, TutorialStep } from '@/context/TutorialContext';
+import { TutorialOverlay } from '@/components/TutorialOverlay';
 
 type InputMode = 'none' | 'text' | 'image' | 'pdf';
 
 export default function AddModalScreen() {
   const router = useRouter();
+  const { currentStep, nextStep } = useTutorial();
 
   const [inputMode, setInputMode] = useState<InputMode>('none');
   const [prompt, setPrompt] = useState('');
@@ -33,6 +36,7 @@ export default function AddModalScreen() {
 
   // Close the modal
   const handleClose = () => {
+    if (currentStep === TutorialStep.UPLOAD_EXPLAIN) nextStep();
     router.back();
   };
 
@@ -323,6 +327,12 @@ export default function AddModalScreen() {
           )}
         </ScrollView>
       </View>
+
+      <TutorialOverlay
+        step={TutorialStep.UPLOAD_EXPLAIN}
+        message="You can upload each of the file types available."
+        subMessage="Choose Write Text and enter 'What's a hackathon?'"
+      />
     </View>
   );
 }

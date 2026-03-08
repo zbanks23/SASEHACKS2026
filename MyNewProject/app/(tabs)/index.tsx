@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 // import { generateTTS } from '@/utils/elevenlabs'; // Commented out to save credits
 import { useSound } from '@/context/SoundContext';
+import { useTutorial, TutorialStep } from '@/context/TutorialContext';
+import { TutorialOverlay } from '@/components/TutorialOverlay';
 
 import { TopNavBar } from '@/components/TopNavBar';
 import { ChatModal } from '@/components/ChatModal';
@@ -157,11 +159,14 @@ const VideoItem = React.memo(({ source, isActive, isAppFocused, onVideoLoaded, i
 
 VideoItem.displayName = 'VideoItem';
 
-const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScript: (updated: SavedScript) => void }) => {
+const QuizView = ({ script, onUpdateScript, tutorialStep, onTutorialNext }: { script: SavedScript, onUpdateScript: (updated: SavedScript) => void, tutorialStep?: TutorialStep, onTutorialNext?: () => void }) => {
   const [userAnswers, setUserAnswers] = useState<(number | null)[]>(script.quizStatus?.userAnswers || new Array(script.questions?.length || 0).fill(null));
   const [isSubmitted, setIsSubmitted] = useState(script.quizStatus?.isSubmitted || false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const submitButtonRef = useRef<View>(null);
+  const [submitButtonRect, setSubmitButtonRect] = useState<any>(null);
 
   // If questions are missing, we should try to generate them here if the automatic one failed
   const handleRetryGeneration = async () => {
@@ -234,6 +239,10 @@ const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScr
 
   const handleSubmit = async () => {
     if (isSubmitted) return;
+    
+    if (tutorialStep === TutorialStep.QUESTIONS_VIEW_EXPLAIN) {
+       onTutorialNext?.();
+    }
 
     let score = 0;
     userAnswers.forEach((ans, idx) => {
@@ -268,8 +277,9 @@ const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScr
   );
 
   return (
-    <ScrollView style={styles.quizScroll} contentContainerStyle={styles.quizContainer}>
-      <ThemedText type="title" style={styles.quizTitle}>Knowledge Check 🧠</ThemedText>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.quizScroll} contentContainerStyle={styles.quizContainer}>
+        <ThemedText type="title" style={styles.quizTitle}>Knowledge Check 🧠</ThemedText>
 
       {isSubmitted && (
         <View style={styles.scoreCard}>
@@ -330,17 +340,41 @@ const QuizView = ({ script, onUpdateScript }: { script: SavedScript, onUpdateScr
 
       {!isSubmitted && (
         <TouchableOpacity
+          ref={submitButtonRef}
           style={[styles.submitButton, userAnswers.includes(null) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={userAnswers.includes(null)}
+          onLayout={() => {
+            submitButtonRef.current?.measureInWindow((x, y, width, height) => {
+              setSubmitButtonRect({ x, y, width, height });
+            });
+          }}
         >
-          <Text style={styles.submitButtonText}>Submit Quiz</Text>
+          <ThemedText style={styles.submitButtonText}>Submit Quiz</ThemedText>
         </TouchableOpacity>
       )}
 
       <View style={{ height: 100 }} />
     </ScrollView>
-  );
+
+    {!isSubmitted ? (
+      <TutorialOverlay
+        step={TutorialStep.QUESTIONS_VIEW_EXPLAIN}
+        message="Scroll and submit your answers to the questions"
+        targetRect={{ x: 20, y: 180, width: windowWidth - 40, height: 40 }} // Lowered for visibility
+        arrowDirection="down"
+        hideFooter={true}
+      />
+    ) : (
+      <TutorialOverlay
+        step={TutorialStep.QUESTIONS_RESULT_EXPLAIN}
+        message="You can see your score, explanations to each question, and retake the quiz here."
+        subMessage="Click anywhere to continue"
+        onPressAnywhere={onTutorialNext}
+      />
+    )}
+  </View>
+);
 };
 
 export default function HomeScreen() {
@@ -371,7 +405,12 @@ export default function HomeScreen() {
     setupAudio();
   }, []);
 
-  const { generatedScript, initialAudio, scriptId } = useLocalSearchParams<{ generatedScript: string; initialAudio?: string, scriptId: string }>();
+  const { generatedScript, initialAudio, scriptId, tab } = useLocalSearchParams<{ 
+    generatedScript: string; 
+    initialAudio?: string; 
+    scriptId: string;
+    tab?: string;
+  }>();
 
   // Parse initial audio URIs from route params
   const initialAudioUris: Record<number, string> = useMemo(() => {
@@ -390,6 +429,24 @@ export default function HomeScreen() {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isUserPaused, setIsUserPaused] = useState(false);
   const { ttsVolume } = useSound();
+  const { currentStep, nextStep, setStep, isTutorialActive } = useTutorial();
+
+  // Tutorial measurement refs
+  const chatButtonRef = useRef<View>(null);
+  const [chatButtonRect, setChatButtonRect] = useState<any>(null);
+
+  // Sync with tab parameter
+  useEffect(() => {
+    if (tab === 'reels') setActiveTopTab('reels');
+    if (tab === 'questions') setActiveTopTab('questions');
+  }, [tab]);
+
+  // Ensure tutorial starts on reels
+  useEffect(() => {
+    if (currentStep === TutorialStep.WELCOME) {
+      setActiveTopTab('reels');
+    }
+  }, [currentStep]);
 
   // Load the full script item if we have an ID
   useEffect(() => {
@@ -499,6 +556,12 @@ export default function HomeScreen() {
       // If we aren't fully loaded on the new video slide yet, wait silently!
       if (!isCurrentVideoLoaded || !scriptToRead || !targetUri) return;
 
+      // TUTORIAL CHECK: Block audio if we are in the explain step
+      if (isTutorialActive && currentStep === TutorialStep.POST_UPLOAD_AUDIO_WAIT) {
+        console.log("🤫 [tutorial] Audio blocked during explanation.");
+        return;
+      }
+
       // 2. Play the new audio if we aren't already!
       if (!unmounted && loadedAudioUriRef.current !== targetUri) {
         try {
@@ -567,7 +630,7 @@ export default function HomeScreen() {
                 <VideoItem
                   source={item.source}
                   isActive={activeVideoIndex === index}
-                  isAppFocused={activeTopTab === 'reels' && !isChatOpen && isTabBarFocused}
+                  isAppFocused={activeTopTab === 'reels' && isTabBarFocused && (!isChatOpen || isTutorialActive)}
                   onVideoLoaded={() => setIsCurrentVideoLoaded(true)}
                   isUserPaused={isUserPaused && activeVideoIndex === index}
                   onTogglePause={() => setIsUserPaused(!isUserPaused)}
@@ -614,7 +677,19 @@ export default function HomeScreen() {
 
           {/* Action Buttons Panel */}
           <View style={[styles.rightActionPanel, { bottom: bottomTabBarHeight + 200 }]}>
-            <TouchableOpacity style={styles.actionButton} onPress={() => setIsChatOpen(true)}>
+            <TouchableOpacity 
+              ref={chatButtonRef}
+              style={styles.actionButton} 
+              onPress={() => {
+                if (currentStep === TutorialStep.ASSISTANT_POINT) nextStep();
+                setIsChatOpen(true);
+              }}
+              onLayout={() => {
+                chatButtonRef.current?.measureInWindow((x, y, width, height) => {
+                  setChatButtonRect({ x, y, width, height });
+                });
+              }}
+            >
               <Ionicons name="chatbubble-ellipses" size={36} color="white" />
               <Text style={styles.actionText}>Chat</Text>
             </TouchableOpacity>
@@ -622,7 +697,12 @@ export default function HomeScreen() {
         </>
       ) : (
         currentSavedScript ? (
-          <QuizView script={currentSavedScript} onUpdateScript={setCurrentSavedScript} />
+          <QuizView 
+            script={currentSavedScript} 
+            onUpdateScript={setCurrentSavedScript}
+            tutorialStep={currentStep}
+            onTutorialNext={nextStep}
+          />
         ) : (
           <View style={styles.placeholderContainer}>
             <ThemedText style={styles.placeholderText}>Generate or select a reel to see its questions!</ThemedText>
@@ -632,13 +712,65 @@ export default function HomeScreen() {
 
       <TopNavBar
         activeTab={activeTopTab}
-        onTabChange={setActiveTopTab}
+        onTabChange={(tab) => {
+          if (currentStep === TutorialStep.QUESTIONS_TAB_POINT && tab === 'questions') nextStep();
+          setActiveTopTab(tab);
+        }}
       />
 
       <ChatModal
         isVisible={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         topicContext={scriptsArray[activeVideoIndex] || ''}
+      />
+
+      {/* TUTORIAL OVERLAYS */}
+      <TutorialOverlay
+        step={TutorialStep.WELCOME}
+        message="Click here to upload"
+        targetRect={{ x: windowWidth / 2 - 30, y: windowHeight - 60, width: 60, height: 60 }} // Approx middle tab
+        arrowDirection="down"
+      />
+
+      <TutorialOverlay
+        step={TutorialStep.POST_UPLOAD_AUDIO_WAIT}
+        message="Captions and audio play based off uploaded material"
+        subMessage="Click anywhere to continue"
+        onPressAnywhere={nextStep}
+      />
+
+      <TutorialOverlay
+        step={TutorialStep.ASSISTANT_POINT}
+        message="Click here for your personalized assistant"
+        targetRect={chatButtonRect}
+        arrowDirection="right"
+      />
+
+      <TutorialOverlay
+        step={TutorialStep.QUESTIONS_TAB_POINT}
+        message="Click here for questions about the material."
+        targetRect={{ x: windowWidth * 0.75 - 50, y: 100, width: 100, height: 40 }} // Point to Questions tab in TopNavBar
+        arrowDirection="up"
+      />
+
+      <TutorialOverlay
+        step={TutorialStep.SETTINGS_TAB_POINT}
+        message="Click here for content settings."
+        targetRect={{ x: windowWidth * 0.1 - 30, y: windowHeight - 60, width: 60, height: 60 }} // Point to first tab (Settings)
+        arrowDirection="down"
+      />
+
+      <TutorialOverlay
+        step={TutorialStep.FINAL_CTA}
+        message="That's it, upload your first file to begin"
+        targetRect={{ x: windowWidth / 2 - 30, y: windowHeight - 60, width: 60, height: 60 }} // Approx middle tab
+        arrowDirection="down"
+      />
+
+      <TutorialOverlay
+        step={TutorialStep.TUTORIAL_COMPLETE}
+        message="Tutorial complete!"
+        subMessage="You're all set to explore SASE HACKS!"
       />
     </View>
   );

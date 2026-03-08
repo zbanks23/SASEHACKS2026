@@ -1,8 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { useSound } from '@/context/SoundContext';
+import { useTutorial, TutorialStep } from '@/context/TutorialContext';
+import { TutorialOverlay } from '@/components/TutorialOverlay';
+import { Dimensions } from 'react-native';
+import { useRouter } from 'expo-router';
+
+const { width, height } = Dimensions.get('window');
 
 export default function SoundSettingsScreen() {
   const { 
@@ -10,6 +16,13 @@ export default function SoundSettingsScreen() {
     ttsVolume, setTtsVolume,
     playbackSpeed, setPlaybackSpeed 
   } = useSound();
+  const { currentStep, nextStep, restartTutorial } = useTutorial();
+  const router = useRouter();
+
+  const handleSlidingComplete = (setter: (val: number) => void) => (val: number) => {
+    setter(val);
+    if (currentStep === TutorialStep.SETTINGS_VIEW_EXPLAIN) nextStep();
+  };
 
   return (
     <View style={styles.container}>
@@ -29,7 +42,7 @@ export default function SoundSettingsScreen() {
             minimumValue={0}
             maximumValue={1}
             value={videoVolume}
-            onSlidingComplete={setVideoVolume}
+            onSlidingComplete={handleSlidingComplete(setVideoVolume)}
             minimumTrackTintColor="#007AFF"
             maximumTrackTintColor="#333"
             thumbTintColor="#FFF"
@@ -82,7 +95,30 @@ export default function SoundSettingsScreen() {
             These settings are saved automatically and apply to the main feed instantly.
           </Text>
         </View>
+
+        <TouchableOpacity 
+          style={styles.replayButton} 
+          onPress={() => {
+            restartTutorial();
+            router.push('/(tabs)');
+          }}
+        >
+          <Ionicons name="refresh-outline" size={20} color="#007AFF" />
+          <Text style={styles.replayButtonText}>Replay Tutorial</Text>
+        </TouchableOpacity>
       </View>
+
+      <TutorialOverlay
+        step={TutorialStep.SETTINGS_VIEW_EXPLAIN}
+        message="Adjust the video audio, TTS audio, and playback speed"
+      />
+
+      <TutorialOverlay
+        step={TutorialStep.SAVE_FEATURE_POINT}
+        message="You can see your saved content here"
+        targetRect={{ x: width * 0.9 - 30, y: height - 60, width: 60, height: 60 }} // Point to last tab (Saved)
+        arrowDirection="down"
+      />
     </View>
   );
 }
@@ -151,5 +187,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     lineHeight: 20,
+  },
+  replayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#222',
+    gap: 10,
+    marginTop: 12,
+  },
+  replayButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

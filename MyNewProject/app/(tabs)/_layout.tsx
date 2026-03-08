@@ -6,9 +6,12 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { BlurView } from 'expo-blur';
 import { StyleSheet } from 'react-native';
 
+import { useTutorial, TutorialStep } from '@/context/TutorialContext';
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  const { currentStep, nextStep } = useTutorial();
 
   return (
     <Tabs
@@ -35,6 +38,11 @@ export default function TabLayout() {
           title: 'Settings',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
         }}
+        listeners={() => ({
+          tabPress: () => {
+             if (currentStep === TutorialStep.SETTINGS_TAB_POINT) nextStep();
+          }
+        })}
       />
 
       {/* 2. Notifications (Bell) */}
@@ -55,9 +63,17 @@ export default function TabLayout() {
         }}
         listeners={() => ({
           tabPress: (e) => {
-            // Only open the upload modal if we are ALREADY on the Home feed!
-            // If we are on another tab, just let it navigate to the Home feed normally.
+            // TUTORIAL: If we are in welcome or final step, move to next!
+            if (currentStep === TutorialStep.WELCOME || currentStep === TutorialStep.FINAL_CTA) {
+               nextStep();
+            }
+
             if (pathname === '/') {
+              // Priority: If on home, stay on home but ensure we are on 'reels'
+              router.setParams({ tab: 'reels' });
+              
+              // Only open the upload modal if we are already seeing reels
+              // This is a subtle UX: 1st click switches Questions -> Reels, 2nd click opens Modal
               e.preventDefault();
               router.push('/add-modal');
             }
@@ -81,6 +97,11 @@ export default function TabLayout() {
           title: 'Saved',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="bookmark.fill" color={color} />,
         }}
+        listeners={() => ({
+          tabPress: () => {
+            if (currentStep === TutorialStep.SAVE_FEATURE_POINT) nextStep();
+          }
+        })}
       />
     </Tabs>
   );
