@@ -12,6 +12,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function SavedScreen() {
   const router = useRouter();
+  const bottomTabBarHeight = useBottomTabBarHeight();
   const [history, setHistory] = useState<SavedScript[]>([]);
   const { currentStep, nextStep } = useTutorial();
 

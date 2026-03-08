@@ -361,7 +361,7 @@ const QuizView = ({ script, onUpdateScript, tutorialStep, onTutorialNext }: { sc
       <TutorialOverlay
         step={TutorialStep.QUESTIONS_VIEW_EXPLAIN}
         message="Scroll and submit your answers to the questions"
-        targetRect={{ x: 20, y: 180, width: windowWidth - 40, height: 40 }} // Lowered for visibility
+        targetRect={{ x: 20, y: 250, width: windowWidth - 40, height: 40 }} // Lowered more for visibility
         arrowDirection="down"
         hideFooter={true}
       />
@@ -441,9 +441,9 @@ export default function HomeScreen() {
     if (tab === 'questions') setActiveTopTab('questions');
   }, [tab]);
 
-  // Ensure tutorial starts on reels
+  // Ensure tutorial starts and ends on reels
   useEffect(() => {
-    if (currentStep === TutorialStep.WELCOME) {
+    if (currentStep === TutorialStep.WELCOME || currentStep === TutorialStep.TUTORIAL_COMPLETE) {
       setActiveTopTab('reels');
     }
   }, [currentStep]);
