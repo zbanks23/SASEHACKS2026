@@ -176,9 +176,16 @@ export default function AddModalScreen() {
         Alert.alert("Failed to generate script. Please try again.");
         setIsGenerating(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      Alert.alert("An error occurred while generating the script.");
+      
+      const errorMsg = error?.message || String(error);
+      if (errorMsg.includes('503') || errorMsg.includes('high demand') || errorMsg.includes('UNAVAILABLE')) {
+        Alert.alert("We are currently experiencing high demand. Please try again later.");
+      } else {
+        Alert.alert("An error occurred while generating the script.");
+      }
+      
       setIsGenerating(false);
     }
   };
