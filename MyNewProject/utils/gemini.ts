@@ -6,14 +6,13 @@ const ai = new GoogleGenAI({
 })
 
 const MODEL_FALLBACK_HIERARCHY = [
-    "gemini-2.5-flash",
+    "gemini-3-flash-preview",
     "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
     "gemini-2.5-pro",
-    "gemini-2.5-pro-tts",
-    "gemini-3-flash",
-    "gemini-3-pro",
-    "gemini-3.1-flash-lite",
-    "gemini-3.1-pro"
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-exp",
+    "gemini-2.0-flash-lite"
 ];
 
 // Reusable function to try multiple models sequentially on 429 quota errors
