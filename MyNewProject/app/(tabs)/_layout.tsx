@@ -3,6 +3,8 @@ import React from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BlurView } from 'expo-blur';
+import { StyleSheet } from 'react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -15,6 +17,9 @@ export default function TabLayout() {
         tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.6)',
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarBackground: () => (
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+        ),
         tabBarStyle: {
           position: 'absolute',
           backgroundColor: 'transparent',
