@@ -107,10 +107,10 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    gap: 40,
+    gap: 24,
   },
   section: {
-    gap: 12,
+    gap: 8,
   },
   labelContainer: {
     flexDirection: 'row',
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   slider: {
     width: '100%',
-    height: 40,
+    height: 30,
   },
   helperText: {
     color: '#666',
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     gap: 12,
-    marginTop: 20,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: '#222',
   },
